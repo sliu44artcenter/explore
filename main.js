@@ -128,7 +128,7 @@ let musicPlaying = false;
 // To use your own music, place your audio file in the assets folder
 // Supported formats: MP3, OGG, WAV
 // Example: assets/background-music.mp3
-const MUSIC_FILE = 'assets/background-music.mp3'; // Change this to your music file path
+const MUSIC_FILE = 'assets/1-13. Wet Hands.mp3'; // Change this to your music file path
 const MUSIC_VOLUME = 0.5; // Volume from 0.0 to 1.0
 
 function initAudio() {
