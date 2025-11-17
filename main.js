@@ -44,6 +44,58 @@ let gameState = {
 };
 
 // ============================================================================
+// NARRATIVE & CHOICE TRACKING SYSTEM
+// ============================================================================
+let choiceState = {
+    ballsChosen: [],
+    holesEntered: [],
+    survivedScenes: 0,
+    totalDeaths: 0,
+    exploredLore: [],
+    atmosphericIntensity: 0, // 0-100 scale
+    windStrength: 0,
+    stormApproaching: false
+};
+
+// Lore and world-building data
+const LORE_DATA = {
+    fire_origin: {
+        title: "Fire Ball Origin",
+        text: "Forged in the heart of a dying star, Fire Balls carry the essence of cosmic energy. They thrive in warmth but fear the cold void.",
+        discovered: false
+    },
+    glass_mystery: {
+        title: "Glass Ball Mystery",
+        text: "Glass Balls are remnants of an ancient civilization that mastered light itself. Pure yet fragile, they shatter when darkness overwhelms them.",
+        discovered: false
+    },
+    bouncy_legend: {
+        title: "Bouncy Ball Legend",
+        text: "Bouncy Balls contain the spirit of resilience. They can withstand impacts that would destroy others, bouncing back from adversity.",
+        discovered: false
+    },
+    dark_realm: {
+        title: "The Dark Realm",
+        text: "A dimension where light itself is consumed. Only those with the power to bounce back can escape its grasp.",
+        discovered: false
+    },
+    red_void: {
+        title: "The Red Void",
+        text: "An endless crimson expanse where only the flame of determination can survive. All else is swallowed.",
+        discovered: false
+    },
+    blue_abyss: {
+        title: "The Blue Abyss",
+        text: "Waters of pure ice magic. Fire melts away, resilience freezes, but clarity of glass finds harmony.",
+        discovered: false
+    }
+};
+
+let loreHotspots = [];
+let weatherParticles = null;
+let narrativeTimer = 0;
+
+// ============================================================================
 // THREE.JS SETUP
 // ============================================================================
 const scene = new THREE.Scene();
@@ -117,6 +169,229 @@ document.body.appendChild(fadeOverlay);
 const messageDiv = document.createElement('div');
 messageDiv.id = 'message';
 document.body.appendChild(messageDiv);
+
+// Create lore popup display
+const lorePopup = document.createElement('div');
+lorePopup.id = 'lore-popup';
+lorePopup.className = 'hidden';
+lorePopup.innerHTML = `
+    <div class="lore-content">
+        <h4 id="lore-title"></h4>
+        <p id="lore-text"></p>
+        <button id="lore-close">Close</button>
+    </div>
+`;
+document.body.appendChild(lorePopup);
+
+// Create atmospheric narration display
+const atmosphericText = document.createElement('div');
+atmosphericText.id = 'atmospheric-text';
+document.body.appendChild(atmosphericText);
+
+// Create wind indicator
+const windIndicator = document.createElement('div');
+windIndicator.id = 'wind-indicator';
+windIndicator.innerHTML = 'Wind: <span id="wind-level">Calm</span>';
+document.body.appendChild(windIndicator);
+
+// Lore popup close handler
+document.getElementById('lore-close').addEventListener('click', () => {
+    lorePopup.classList.add('hidden');
+    gameState.inputEnabled = true;
+});
+
+// ============================================================================
+// NARRATIVE SYSTEM FUNCTIONS
+// ============================================================================
+function showAtmosphericText(text, duration = 3000) {
+    atmosphericText.textContent = text;
+    atmosphericText.classList.add('show');
+    setTimeout(() => {
+        atmosphericText.classList.remove('show');
+    }, duration);
+}
+
+function showLorePopup(loreKey) {
+    if (!LORE_DATA[loreKey]) return;
+
+    const lore = LORE_DATA[loreKey];
+    document.getElementById('lore-title').textContent = lore.title;
+    document.getElementById('lore-text').textContent = lore.text;
+    lorePopup.classList.remove('hidden');
+
+    if (!lore.discovered) {
+        lore.discovered = true;
+        choiceState.exploredLore.push(loreKey);
+        showMessage(`Lore Discovered: ${lore.title}`);
+    }
+
+    gameState.inputEnabled = false;
+}
+
+function updateWindIndicator() {
+    const windLevel = document.getElementById('wind-level');
+    if (choiceState.windStrength < 20) {
+        windLevel.textContent = 'Calm';
+        windLevel.style.color = '#81c784';
+    } else if (choiceState.windStrength < 50) {
+        windLevel.textContent = 'Breezy';
+        windLevel.style.color = '#ffd54f';
+    } else if (choiceState.windStrength < 80) {
+        windLevel.textContent = 'Strong';
+        windLevel.style.color = '#ff9800';
+    } else {
+        windLevel.textContent = 'Storm';
+        windLevel.style.color = '#f44336';
+    }
+}
+
+function triggerAtmosphericEvent(eventType) {
+    switch (eventType) {
+        case 'storm_approaching':
+            choiceState.stormApproaching = true;
+            showAtmosphericText('Dark clouds gather on the horizon...', 4000);
+            choiceState.windStrength = Math.min(100, choiceState.windStrength + 30);
+            updateWindIndicator();
+            break;
+        case 'calm_before':
+            showAtmosphericText('An eerie stillness fills the air...', 3000);
+            choiceState.windStrength = 0;
+            updateWindIndicator();
+            break;
+        case 'tension_rising':
+            showAtmosphericText('You sense something watching from the shadows...', 3500);
+            choiceState.atmosphericIntensity += 20;
+            break;
+        case 'relief':
+            showAtmosphericText('A wave of warmth washes over you...', 3000);
+            choiceState.atmosphericIntensity = Math.max(0, choiceState.atmosphericIntensity - 30);
+            break;
+    }
+}
+
+function createLoreHotspot(position, loreKey, color = 0xffeb3b) {
+    // Create glowing orb as hotspot
+    const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+    const material = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.6
+    });
+    const hotspot = new THREE.Mesh(geometry, material);
+    hotspot.position.copy(position);
+    hotspot.userData.isLoreHotspot = true;
+    hotspot.userData.loreKey = loreKey;
+    hotspot.userData.pulsePhase = Math.random() * Math.PI * 2;
+
+    // Add outer glow
+    const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.BackSide
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    hotspot.add(glow);
+
+    scene.add(hotspot);
+    loreHotspots.push(hotspot);
+    sceneObjects.push(hotspot);
+
+    return hotspot;
+}
+
+function updateLoreHotspots() {
+    const time = Date.now() * 0.003;
+    loreHotspots.forEach(hotspot => {
+        // Pulse animation
+        const pulse = Math.sin(time + hotspot.userData.pulsePhase) * 0.3 + 1;
+        hotspot.scale.setScalar(pulse);
+        hotspot.material.opacity = 0.4 + Math.sin(time + hotspot.userData.pulsePhase) * 0.3;
+    });
+}
+
+function checkLoreHotspotCollision() {
+    if (!playerBall || !gameState.inputEnabled) return;
+
+    for (let i = loreHotspots.length - 1; i >= 0; i--) {
+        const hotspot = loreHotspots[i];
+        const distance = playerBall.position.distanceTo(hotspot.position);
+
+        if (distance < BALL_RADIUS + 1) {
+            showLorePopup(hotspot.userData.loreKey);
+            // Remove hotspot after discovery
+            scene.remove(hotspot);
+            loreHotspots.splice(i, 1);
+            break;
+        }
+    }
+}
+
+function createWeatherParticles(type = 'dust') {
+    if (weatherParticles) {
+        scene.remove(weatherParticles);
+    }
+
+    const particleCount = type === 'snow' ? 500 : 200;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 60;
+        positions[i * 3 + 1] = Math.random() * 30;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+
+        velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+        velocities[i * 3 + 1] = -Math.random() * 0.05 - 0.02;
+        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.userData.velocities = velocities;
+
+    const color = type === 'snow' ? 0xffffff : type === 'dust' ? 0xd4c4a8 : 0x888888;
+    const material = new THREE.PointsMaterial({
+        size: type === 'snow' ? 0.15 : 0.1,
+        color: color,
+        transparent: true,
+        opacity: 0.6
+    });
+
+    weatherParticles = new THREE.Points(geometry, material);
+    weatherParticles.userData.type = type;
+    scene.add(weatherParticles);
+}
+
+function updateWeatherParticles() {
+    if (!weatherParticles) return;
+
+    const positions = weatherParticles.geometry.attributes.position.array;
+    const velocities = weatherParticles.geometry.userData.velocities;
+    const windEffect = choiceState.windStrength / 100;
+
+    for (let i = 0; i < positions.length; i += 3) {
+        positions[i] += velocities[i] + windEffect * 0.1;
+        positions[i + 1] += velocities[i + 1];
+        positions[i + 2] += velocities[i + 2];
+
+        // Reset particle if it falls below ground
+        if (positions[i + 1] < 0) {
+            positions[i + 1] = 30;
+            positions[i] = (Math.random() - 0.5) * 60;
+            positions[i + 2] = (Math.random() - 0.5) * 60;
+        }
+
+        // Wrap around boundaries
+        if (positions[i] > 30) positions[i] = -30;
+        if (positions[i] < -30) positions[i] = 30;
+        if (positions[i + 2] > 30) positions[i + 2] = -30;
+        if (positions[i + 2] < -30) positions[i + 2] = 30;
+    }
+
+    weatherParticles.geometry.attributes.position.needsUpdate = true;
+}
 
 // ============================================================================
 // AUDIO SYSTEM
@@ -436,6 +711,15 @@ function clearScene() {
     trailParticles.forEach(t => scene.remove(t));
     trailParticles = [];
 
+    // Clear lore hotspots
+    loreHotspots = [];
+
+    // Clear weather particles
+    if (weatherParticles) {
+        scene.remove(weatherParticles);
+        weatherParticles = null;
+    }
+
     // Remove player ball
     if (playerBall) {
         scene.remove(playerBall);
@@ -534,6 +818,25 @@ function createSceneA() {
     scene.add(trigger);
     sceneObjects.push(trigger);
 
+    // Add lore hotspots near selectable balls
+    if (!LORE_DATA.fire_origin.discovered) {
+        createLoreHotspot(new THREE.Vector3(-7, 1.5, 2), 'fire_origin', 0xff5722);
+    }
+    if (!LORE_DATA.glass_mystery.discovered) {
+        createLoreHotspot(new THREE.Vector3(7, 1.5, 2), 'glass_mystery', 0xe0e0e0);
+    }
+    if (!LORE_DATA.bouncy_legend.discovered) {
+        createLoreHotspot(new THREE.Vector3(2, 1.5, -7), 'bouncy_legend', 0x4caf50);
+    }
+
+    // Add atmospheric dust particles
+    createWeatherParticles('dust');
+
+    // Atmospheric intro
+    setTimeout(() => {
+        showAtmosphericText('The journey begins... Choose your path wisely.', 4000);
+    }, 1500);
+
     updateUI();
 }
 
@@ -631,6 +934,30 @@ function createSceneB() {
         sceneObjects.push(label);
     }
 
+    // Add lore hotspots for realm information
+    if (!LORE_DATA.dark_realm.discovered) {
+        createLoreHotspot(new THREE.Vector3(-12, 1.5, -8), 'dark_realm', 0x757575);
+    }
+    if (!LORE_DATA.red_void.discovered) {
+        createLoreHotspot(new THREE.Vector3(0, 1.5, -12), 'red_void', 0xef5350);
+    }
+    if (!LORE_DATA.blue_abyss.discovered) {
+        createLoreHotspot(new THREE.Vector3(12, 1.5, -8), 'blue_abyss', 0x42a5f5);
+    }
+
+    // Track choice
+    choiceState.holesEntered.push('scene_b_visited');
+
+    // Atmospheric tension before choice
+    setTimeout(() => {
+        triggerAtmosphericEvent('tension_rising');
+    }, 2000);
+
+    // Add stronger wind effect
+    choiceState.windStrength = 40;
+    updateWindIndicator();
+    createWeatherParticles('dust');
+
     updateUI();
 }
 
@@ -653,6 +980,15 @@ function createDarkScene() {
 
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
     scene.add(playerBall);
+
+    // Track choice and consequence
+    choiceState.holesEntered.push('dark_scene');
+
+    // Atmospheric pacing before effect
+    triggerAtmosphericEvent('calm_before');
+    setTimeout(() => {
+        showAtmosphericText('Darkness consumes all light...', 3000);
+    }, 1500);
 
     // Handle ball type specific behavior
     handleDarkSceneEffect();
@@ -702,6 +1038,15 @@ function createRedScene() {
         sceneObjects.push(trigger);
     }
 
+    // Track choice and consequence
+    choiceState.holesEntered.push('red_scene');
+
+    // Atmospheric pacing
+    triggerAtmosphericEvent('storm_approaching');
+    setTimeout(() => {
+        showAtmosphericText('The crimson void hungers...', 3000);
+    }, 1500);
+
     handleRedSceneEffect();
 
     updateUI();
@@ -748,6 +1093,17 @@ function createBlueScene() {
         scene.add(trigger);
         sceneObjects.push(trigger);
     }
+
+    // Track choice and consequence
+    choiceState.holesEntered.push('blue_scene');
+
+    // Atmospheric pacing - cold and serene
+    showAtmosphericText('The icy waters reflect your true nature...', 4000);
+    choiceState.windStrength = 10;
+    updateWindIndicator();
+
+    // Add snow particles for blue scene
+    createWeatherParticles('snow');
 
     handleBlueSceneEffect();
 
@@ -1183,6 +1539,29 @@ function checkCollisions() {
                 scene.add(playerBall);
                 gameState.currentBallType = newType;
 
+                // Track this choice in narrative system
+                choiceState.ballsChosen.push(newType);
+
+                // Micro-choice consequences based on ball type
+                if (newType === BALL_TYPES.FIRE) {
+                    choiceState.atmosphericIntensity += 10;
+                    choiceState.windStrength = Math.min(100, choiceState.windStrength + 15);
+                    updateWindIndicator();
+                    setTimeout(() => {
+                        showAtmosphericText('You feel the heat of determination coursing through you...', 3500);
+                    }, 1500);
+                } else if (newType === BALL_TYPES.GLASS) {
+                    choiceState.atmosphericIntensity -= 5;
+                    setTimeout(() => {
+                        showAtmosphericText('Clarity fills your mind, but fragility shadows your path...', 3500);
+                    }, 1500);
+                } else if (newType === BALL_TYPES.BOUNCY) {
+                    choiceState.atmosphericIntensity += 5;
+                    setTimeout(() => {
+                        showAtmosphericText('Resilience becomes your shield against the unknown...', 3500);
+                    }, 1500);
+                }
+
                 // Remove all selectable balls
                 selectableBalls.forEach(b => scene.remove(b));
                 selectableBalls = [];
@@ -1357,6 +1736,11 @@ function animate() {
         trailSpawnCounter = 0;
     }
     updateTrailParticles();
+
+    // Update narrative systems
+    updateLoreHotspots();
+    checkLoreHotspotCollision();
+    updateWeatherParticles();
 
     renderer.render(scene, camera);
 }

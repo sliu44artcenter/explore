@@ -249,3 +249,103 @@ body {
 #message.show {
     opacity: 1;
 }
+
+/* Lore Popup */
+#lore-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+#lore-popup.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lore-content {
+    background: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
+    padding: 30px 40px;
+    border-radius: 15px;
+    max-width: 500px;
+    border: 2px solid #7c4dff;
+    box-shadow: 0 0 30px rgba(124, 77, 255, 0.5);
+}
+
+.lore-content h4 {
+    color: #ffeb3b;
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+.lore-content p {
+    color: #e0e0e0;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+#lore-close {
+    background: #7c4dff;
+    color: #fff;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 25px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#lore-close:hover {
+    background: #651fff;
+    transform: scale(1.05);
+}
+
+/* Atmospheric Text */
+#atmospheric-text {
+    position: fixed;
+    top: 25%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    color: #b0bec5;
+    font-size: 20px;
+    font-style: italic;
+    text-align: center;
+    z-index: 75;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1s ease;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+#atmospheric-text.show {
+    opacity: 1;
+}
+
+/* Wind Indicator */
+#wind-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 14px;
+    z-index: 10;
+    backdrop-filter: blur(5px);
+}
+
+#wind-level {
+    font-weight: bold;
+    color: #81c784;
+}
