@@ -24,7 +24,7 @@ const SCENES = {
 };
 
 const BALL_RADIUS = 1;
-const MOVE_SPEED = 0.04;
+const MOVE_SPEED = 0.02;
 const ROTATION_SPEED = 0.05;
 const CAMERA_DISTANCE = 10;
 const CAMERA_HEIGHT = 6;
@@ -404,8 +404,8 @@ function createSceneB() {
     const holeScenes = [SCENES.DARK, SCENES.RED, SCENES.BLUE];
 
     for (let i = 0; i < 3; i++) {
-        // Hole visual
-        const holeGeometry = new THREE.CylinderGeometry(3, 3, 1, 32);
+        // Hole visual - smooth circular shape with high segments
+        const holeGeometry = new THREE.CylinderGeometry(3, 3, 1, 64);
         const holeMaterial = new THREE.MeshStandardMaterial({
             color: holeColors[i],
             emissive: holeColors[i],
@@ -417,8 +417,22 @@ function createSceneB() {
         scene.add(hole);
         sceneObjects.push(hole);
 
-        // Trigger zone
-        const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 16);
+        // Inner ring for visual depth
+        const innerRingGeometry = new THREE.TorusGeometry(2.5, 0.3, 16, 64);
+        const innerRingMaterial = new THREE.MeshStandardMaterial({
+            color: 0x000000,
+            emissive: holeColors[i],
+            emissiveIntensity: 0.1
+        });
+        const innerRing = new THREE.Mesh(innerRingGeometry, innerRingMaterial);
+        innerRing.position.copy(holePositions[i]);
+        innerRing.position.y = 0.1;
+        innerRing.rotation.x = -Math.PI / 2;
+        scene.add(innerRing);
+        sceneObjects.push(innerRing);
+
+        // Trigger zone - smooth circular cylinder with high segments
+        const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 64);
         const triggerMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
         trigger.position.copy(holePositions[i]);
