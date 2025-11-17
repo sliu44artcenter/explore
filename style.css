@@ -1,0 +1,219 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: #000;
+    overflow: hidden;
+    color: #fff;
+}
+
+/* Game Container */
+#game-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#game-container canvas {
+    display: block;
+}
+
+/* UI Overlay */
+#ui-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#instructions {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+}
+
+#instructions h3 {
+    margin-bottom: 10px;
+    color: #4fc3f7;
+    font-size: 16px;
+}
+
+#instructions p {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #ddd;
+}
+
+#ball-type {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    font-size: 16px;
+}
+
+#ball-type-text {
+    font-weight: bold;
+    color: #ffd54f;
+}
+
+#scene-info {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    font-size: 16px;
+}
+
+#scene-text {
+    font-weight: bold;
+    color: #81c784;
+}
+
+/* Restart Button */
+#restart-btn {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+    pointer-events: auto;
+}
+
+#restart-btn:hover {
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+}
+
+#restart-btn:active {
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
+#restart-btn.hidden {
+    display: none;
+}
+
+/* Loading Screen */
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.5s ease;
+}
+
+#loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loader {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #4fc3f7;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#loading-screen p {
+    font-size: 18px;
+    color: #ccc;
+}
+
+/* Fade Overlay for Scene Transitions */
+#fade-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 50;
+    transition: opacity 0.5s ease;
+}
+
+/* Ball Type Indicator Colors */
+.ball-initial { color: #b0bec5 !important; }
+.ball-fire { color: #ff5722 !important; }
+.ball-glass { color: #e0e0e0 !important; }
+.ball-bouncy { color: #4caf50 !important; }
+
+/* Scene Colors */
+.scene-a { color: #81c784 !important; }
+.scene-b { color: #64b5f6 !important; }
+.scene-dark { color: #757575 !important; }
+.scene-red { color: #ef5350 !important; }
+.scene-blue { color: #42a5f5 !important; }
+
+/* Message Display */
+#message {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px 40px;
+    border-radius: 15px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    z-index: 80;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#message.show {
+    opacity: 1;
+}

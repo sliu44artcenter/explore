@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Rolling Ball Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Game Canvas Container -->
+    <div id="game-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <div id="instructions">
+            <h3>Controls</h3>
+            <p>WASD or Arrow Keys - Move Ball</p>
+            <p>Space - Jump (Bouncy Ball only)</p>
+        </div>
+        <div id="ball-type">
+            Current Ball: <span id="ball-type-text">Initial Ball</span>
+        </div>
+        <div id="scene-info">
+            Scene: <span id="scene-text">Scene A</span>
+        </div>
+    </div>
+
+    <!-- Restart Button (hidden by default) -->
+    <button id="restart-btn" class="hidden">Restart</button>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <p>Loading Game...</p>
+    </div>
+
+    <!-- Import Three.js from CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- Main Game Script -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
