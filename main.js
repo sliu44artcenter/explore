@@ -105,6 +105,7 @@ const ballTypeText = document.getElementById('ball-type-text');
 const sceneText = document.getElementById('scene-text');
 const restartBtn = document.getElementById('restart-btn');
 const loadingScreen = document.getElementById('loading-screen');
+const musicBtn = document.getElementById('music-btn');
 
 // Create fade overlay
 const fadeOverlay = document.createElement('div');
@@ -115,6 +116,115 @@ document.body.appendChild(fadeOverlay);
 const messageDiv = document.createElement('div');
 messageDiv.id = 'message';
 document.body.appendChild(messageDiv);
+
+// ============================================================================
+// AUDIO SYSTEM
+// ============================================================================
+let audioContext = null;
+let musicPlaying = false;
+let musicNodes = [];
+
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function createOscillator(freq, type = 'sine', gain = 0.1) {
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    return { osc, gainNode };
+}
+
+function startMusic() {
+    if (musicPlaying) return;
+
+    initAudio();
+
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+
+    // Create ambient background music with multiple oscillators
+    const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+    const bassNotes = [130.81, 164.81, 196.00]; // C3, E3, G3
+
+    // Main melody - soft pad sound
+    const pad1 = createOscillator(notes[0], 'sine', 0.05);
+    const pad2 = createOscillator(notes[1], 'sine', 0.04);
+    const pad3 = createOscillator(notes[2], 'sine', 0.03);
+
+    // Bass drone
+    const bass = createOscillator(bassNotes[0], 'triangle', 0.06);
+
+    // Start all oscillators
+    pad1.osc.start();
+    pad2.osc.start();
+    pad3.osc.start();
+    bass.osc.start();
+
+    musicNodes = [pad1, pad2, pad3, bass];
+
+    // Animate the music - slowly change frequencies for ambient feel
+    let noteIndex = 0;
+    const musicInterval = setInterval(() => {
+        if (!musicPlaying) {
+            clearInterval(musicInterval);
+            return;
+        }
+
+        noteIndex = (noteIndex + 1) % notes.length;
+        const bassIndex = noteIndex % bassNotes.length;
+
+        // Smoothly transition frequencies
+        const now = audioContext.currentTime;
+        pad1.osc.frequency.linearRampToValueAtTime(notes[noteIndex], now + 2);
+        pad2.osc.frequency.linearRampToValueAtTime(notes[(noteIndex + 1) % notes.length], now + 2);
+        pad3.osc.frequency.linearRampToValueAtTime(notes[(noteIndex + 2) % notes.length], now + 2);
+        bass.osc.frequency.linearRampToValueAtTime(bassNotes[bassIndex], now + 2);
+    }, 4000);
+
+    musicPlaying = true;
+    musicBtn.textContent = '🔊 Music On';
+    musicBtn.classList.add('playing');
+}
+
+function stopMusic() {
+    if (!musicPlaying) return;
+
+    // Fade out and stop all oscillators
+    musicNodes.forEach(node => {
+        const now = audioContext.currentTime;
+        node.gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+        setTimeout(() => {
+            node.osc.stop();
+        }, 600);
+    });
+
+    musicNodes = [];
+    musicPlaying = false;
+    musicBtn.textContent = '🔇 Music Off';
+    musicBtn.classList.remove('playing');
+}
+
+function toggleMusic() {
+    if (musicPlaying) {
+        stopMusic();
+    } else {
+        startMusic();
+    }
+}
+
+// Music button event listener
+musicBtn.addEventListener('click', toggleMusic);
 
 // ============================================================================
 // BALL CREATION FUNCTIONS
