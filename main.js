@@ -97,6 +97,7 @@ let sceneObjects = [];
 let particles = [];
 let fragments = [];
 let ripples = [];
+let trailParticles = [];
 
 // ============================================================================
 // UI ELEMENTS
@@ -430,6 +431,10 @@ function clearScene() {
     fragments = [];
     ripples.forEach(r => scene.remove(r));
     ripples = [];
+
+    // Clear trail particles
+    trailParticles.forEach(t => scene.remove(t));
+    trailParticles = [];
 
     // Remove player ball
     if (playerBall) {
@@ -963,6 +968,83 @@ function createDisappearEffect(position) {
     particles.push(points);
 }
 
+// ============================================================================
+// TRAIL SYSTEM
+// ============================================================================
+function getTrailColor(ballType) {
+    switch (ballType) {
+        case BALL_TYPES.FIRE:
+            return 0xff3300; // Red trail
+        case BALL_TYPES.GLASS:
+            return 0x888888; // Grey trail
+        case BALL_TYPES.BOUNCY:
+            return 0x00ff00; // Green trail
+        default:
+            return 0xcccccc; // Default grey
+    }
+}
+
+function spawnTrailParticle() {
+    if (!playerBall || gameState.currentBallType === BALL_TYPES.INITIAL) return;
+
+    // Only spawn trail if ball is moving
+    const speed = Math.sqrt(
+        gameState.velocity.x * gameState.velocity.x +
+        gameState.velocity.z * gameState.velocity.z
+    );
+
+    if (speed < 0.005) return; // Don't spawn trail if barely moving
+
+    const trailColor = getTrailColor(gameState.currentBallType);
+
+    // Create a small sphere for the trail particle
+    const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+    const material = new THREE.MeshBasicMaterial({
+        color: trailColor,
+        transparent: true,
+        opacity: 0.7
+    });
+
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(playerBall.position);
+    particle.position.y = 0.2; // Slightly above ground
+    particle.userData.life = 60; // Lifetime in frames
+    particle.userData.maxLife = 60;
+
+    scene.add(particle);
+    trailParticles.push(particle);
+
+    // Limit trail particles to avoid performance issues
+    if (trailParticles.length > 100) {
+        const oldParticle = trailParticles.shift();
+        scene.remove(oldParticle);
+    }
+}
+
+function updateTrailParticles() {
+    for (let i = trailParticles.length - 1; i >= 0; i--) {
+        const particle = trailParticles[i];
+        particle.userData.life--;
+
+        // Fade out and shrink
+        const lifeRatio = particle.userData.life / particle.userData.maxLife;
+        particle.material.opacity = lifeRatio * 0.7;
+        particle.scale.setScalar(lifeRatio);
+
+        if (particle.userData.life <= 0) {
+            scene.remove(particle);
+            trailParticles.splice(i, 1);
+        }
+    }
+}
+
+function clearTrailParticles() {
+    for (let i = trailParticles.length - 1; i >= 0; i--) {
+        scene.remove(trailParticles[i]);
+    }
+    trailParticles = [];
+}
+
 function updateEffects() {
     // Update fragments
     for (let i = fragments.length - 1; i >= 0; i--) {
@@ -1256,6 +1338,8 @@ restartBtn.addEventListener('click', () => {
 // ============================================================================
 // ANIMATION LOOP
 // ============================================================================
+let trailSpawnCounter = 0;
+
 function animate() {
     requestAnimationFrame(animate);
 
@@ -1265,6 +1349,14 @@ function animate() {
     updateEffects();
     updateFireParticles();
     updateBouncyGlow();
+
+    // Spawn trail particles every 3 frames for smooth trail
+    trailSpawnCounter++;
+    if (trailSpawnCounter >= 3) {
+        spawnTrailParticle();
+        trailSpawnCounter = 0;
+    }
+    updateTrailParticles();
 
     renderer.render(scene, camera);
 }
