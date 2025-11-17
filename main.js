@@ -120,14 +120,47 @@ document.body.appendChild(messageDiv);
 // ============================================================================
 // AUDIO SYSTEM
 // ============================================================================
-let audioContext = null;
+let backgroundMusic = null;
 let musicPlaying = false;
-let musicNodes = [];
+
+// Configuration for custom music
+// To use your own music, place your audio file in the assets folder
+// Supported formats: MP3, OGG, WAV
+// Example: assets/background-music.mp3
+const MUSIC_FILE = 'assets/background-music.mp3'; // Change this to your music file path
+const MUSIC_VOLUME = 0.5; // Volume from 0.0 to 1.0
 
 function initAudio() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (!backgroundMusic) {
+        backgroundMusic = new Audio(MUSIC_FILE);
+        backgroundMusic.loop = true; // Loop the music
+        backgroundMusic.volume = MUSIC_VOLUME;
+
+        // Handle audio loading errors
+        backgroundMusic.addEventListener('error', (e) => {
+            console.warn('Could not load music file:', MUSIC_FILE);
+            console.warn('Falling back to procedural music');
+            useFallbackMusic();
+        });
+
+        // Update button when music ends (if not looping)
+        backgroundMusic.addEventListener('ended', () => {
+            if (!backgroundMusic.loop) {
+                musicPlaying = false;
+                musicBtn.textContent = '🔇 Music Off';
+                musicBtn.classList.remove('playing');
+            }
+        });
     }
+}
+
+// Fallback procedural music if no file is found
+let audioContext = null;
+let musicNodes = [];
+let usingFallback = false;
+
+function useFallbackMusic() {
+    usingFallback = true;
 }
 
 function createOscillator(freq, type = 'sine', gain = 0.1) {
@@ -144,28 +177,23 @@ function createOscillator(freq, type = 'sine', gain = 0.1) {
     return { osc, gainNode };
 }
 
-function startMusic() {
-    if (musicPlaying) return;
-
-    initAudio();
+function startFallbackMusic() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
     if (audioContext.state === 'suspended') {
         audioContext.resume();
     }
 
-    // Create ambient background music with multiple oscillators
-    const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
-    const bassNotes = [130.81, 164.81, 196.00]; // C3, E3, G3
+    const notes = [261.63, 329.63, 392.00, 523.25];
+    const bassNotes = [130.81, 164.81, 196.00];
 
-    // Main melody - soft pad sound
     const pad1 = createOscillator(notes[0], 'sine', 0.05);
     const pad2 = createOscillator(notes[1], 'sine', 0.04);
     const pad3 = createOscillator(notes[2], 'sine', 0.03);
-
-    // Bass drone
     const bass = createOscillator(bassNotes[0], 'triangle', 0.06);
 
-    // Start all oscillators
     pad1.osc.start();
     pad2.osc.start();
     pad3.osc.start();
@@ -173,7 +201,6 @@ function startMusic() {
 
     musicNodes = [pad1, pad2, pad3, bass];
 
-    // Animate the music - slowly change frequencies for ambient feel
     let noteIndex = 0;
     const musicInterval = setInterval(() => {
         if (!musicPlaying) {
@@ -183,14 +210,40 @@ function startMusic() {
 
         noteIndex = (noteIndex + 1) % notes.length;
         const bassIndex = noteIndex % bassNotes.length;
-
-        // Smoothly transition frequencies
         const now = audioContext.currentTime;
+
         pad1.osc.frequency.linearRampToValueAtTime(notes[noteIndex], now + 2);
         pad2.osc.frequency.linearRampToValueAtTime(notes[(noteIndex + 1) % notes.length], now + 2);
         pad3.osc.frequency.linearRampToValueAtTime(notes[(noteIndex + 2) % notes.length], now + 2);
         bass.osc.frequency.linearRampToValueAtTime(bassNotes[bassIndex], now + 2);
     }, 4000);
+}
+
+function stopFallbackMusic() {
+    musicNodes.forEach(node => {
+        const now = audioContext.currentTime;
+        node.gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+        setTimeout(() => {
+            node.osc.stop();
+        }, 600);
+    });
+    musicNodes = [];
+}
+
+function startMusic() {
+    if (musicPlaying) return;
+
+    initAudio();
+
+    if (usingFallback) {
+        startFallbackMusic();
+    } else {
+        backgroundMusic.play().catch(err => {
+            console.warn('Audio play failed:', err);
+            useFallbackMusic();
+            startFallbackMusic();
+        });
+    }
 
     musicPlaying = true;
     musicBtn.textContent = '🔊 Music On';
@@ -200,16 +253,13 @@ function startMusic() {
 function stopMusic() {
     if (!musicPlaying) return;
 
-    // Fade out and stop all oscillators
-    musicNodes.forEach(node => {
-        const now = audioContext.currentTime;
-        node.gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
-        setTimeout(() => {
-            node.osc.stop();
-        }, 600);
-    });
+    if (usingFallback) {
+        stopFallbackMusic();
+    } else if (backgroundMusic) {
+        backgroundMusic.pause();
+        backgroundMusic.currentTime = 0;
+    }
 
-    musicNodes = [];
     musicPlaying = false;
     musicBtn.textContent = '🔇 Music Off';
     musicBtn.classList.remove('playing');

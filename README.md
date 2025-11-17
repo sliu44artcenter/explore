@@ -57,6 +57,40 @@ Scene B contains three colored holes. Each hole leads to a different sub-scene w
 - **Glow Effects** - Bouncy ball pulsating glow
 - **Smooth Transitions** - Fade overlays between scenes
 
+## Adding Custom Music
+
+You can add your own background music to the game:
+
+### Step 1: Add Your Audio File
+
+Place your audio file in the `assets` folder:
+```
+/assets/background-music.mp3
+```
+
+Supported formats: **MP3**, **OGG**, **WAV**
+
+### Step 2: Configure the File Path (Optional)
+
+If your file has a different name, edit `main.js` and change line 130:
+```javascript
+const MUSIC_FILE = 'assets/your-music-file.mp3'; // Change to your file name
+const MUSIC_VOLUME = 0.5; // Adjust volume (0.0 to 1.0)
+```
+
+### Step 3: Test
+
+1. Open the game in your browser
+2. Click the "🔇 Music Off" button in the bottom-right corner
+3. Your custom music will play and loop automatically
+
+### Notes
+
+- If no music file is found, the game falls back to procedural ambient music
+- Music respects browser autoplay policies (requires user click)
+- The music button toggles between playing and paused states
+- Audio volume can be adjusted in the `MUSIC_VOLUME` constant
+
 ## Technical Details
 
 ### Built With
@@ -81,7 +115,9 @@ Scene B contains three colored holes. Each hole leads to a different sub-scene w
 ├── index.html      # Main HTML entry point
 ├── style.css       # UI styling and effects
 ├── main.js         # Complete game logic
-└── README.md       # This documentation
+├── README.md       # This documentation
+└── assets/         # Optional folder for custom music
+    └── background-music.mp3  # Your custom music file (add your own)
 ```
 
 ### No Dependencies Required
