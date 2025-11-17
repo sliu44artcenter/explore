@@ -64,6 +64,26 @@ let resources = {
     harmony: 50       // Balance with environment (0-100)
 };
 
+// Visual state for lighting and weather transitions
+let visualState = {
+    targetFogDensity: 0,
+    currentFogDensity: 0,
+    targetLightIntensity: 1,
+    currentLightIntensity: 1,
+    targetAmbientIntensity: 0.4,
+    currentAmbientIntensity: 0.4,
+    targetLightColor: new THREE.Color(0xffffff),
+    currentLightColor: new THREE.Color(0xffffff),
+    targetAmbientColor: new THREE.Color(0xffffff),
+    currentAmbientColor: new THREE.Color(0xffffff),
+    cameraShakeIntensity: 0,
+    idleAnimationPhase: 0,
+    timeOfDay: 'day' // 'day', 'dusk', 'storm'
+};
+
+// Background environment objects
+let backgroundObjects = [];
+
 // Lore and world-building data
 const LORE_DATA = {
     fire_origin: {
@@ -443,6 +463,11 @@ function resetGame() {
     resources.harmony = 50;
     updateResourceUI();
 
+    // Reset visual state
+    visualState.cameraShakeIntensity = 0;
+    visualState.idleAnimationPhase = 0;
+    scene.fog = null;
+
     // Reset lore discovery
     Object.keys(LORE_DATA).forEach(key => {
         LORE_DATA[key].discovered = false;
@@ -476,6 +501,249 @@ function triggerAtmosphericEvent(eventType) {
             showAtmosphericText('A wave of warmth washes over you...', 3000);
             choiceState.atmosphericIntensity = Math.max(0, choiceState.atmosphericIntensity - 30);
             break;
+    }
+}
+
+// ============================================================================
+// VISUAL ENHANCEMENT SYSTEM
+// ============================================================================
+function setWeatherLighting(preset) {
+    switch (preset) {
+        case 'day':
+            visualState.targetLightIntensity = 1.0;
+            visualState.targetAmbientIntensity = 0.4;
+            visualState.targetLightColor.setHex(0xffffff);
+            visualState.targetAmbientColor.setHex(0xffffff);
+            visualState.targetFogDensity = 0;
+            visualState.timeOfDay = 'day';
+            break;
+        case 'dusk':
+            visualState.targetLightIntensity = 0.7;
+            visualState.targetAmbientIntensity = 0.3;
+            visualState.targetLightColor.setHex(0xffa07a);
+            visualState.targetAmbientColor.setHex(0xffe4b5);
+            visualState.targetFogDensity = 0.01;
+            visualState.timeOfDay = 'dusk';
+            break;
+        case 'storm':
+            visualState.targetLightIntensity = 0.4;
+            visualState.targetAmbientIntensity = 0.2;
+            visualState.targetLightColor.setHex(0x8888aa);
+            visualState.targetAmbientColor.setHex(0x666688);
+            visualState.targetFogDensity = 0.03;
+            visualState.timeOfDay = 'storm';
+            break;
+        case 'cold':
+            visualState.targetLightIntensity = 0.8;
+            visualState.targetAmbientIntensity = 0.35;
+            visualState.targetLightColor.setHex(0xaaddff);
+            visualState.targetAmbientColor.setHex(0xccddff);
+            visualState.targetFogDensity = 0.015;
+            visualState.timeOfDay = 'cold';
+            break;
+        case 'warm':
+            visualState.targetLightIntensity = 1.1;
+            visualState.targetAmbientIntensity = 0.45;
+            visualState.targetLightColor.setHex(0xffddaa);
+            visualState.targetAmbientColor.setHex(0xffeedd);
+            visualState.targetFogDensity = 0.005;
+            visualState.timeOfDay = 'warm';
+            break;
+    }
+}
+
+function updateLightingTransitions() {
+    const lerpSpeed = 0.02;
+
+    // Smooth transition for light intensities
+    visualState.currentLightIntensity += (visualState.targetLightIntensity - visualState.currentLightIntensity) * lerpSpeed;
+    visualState.currentAmbientIntensity += (visualState.targetAmbientIntensity - visualState.currentAmbientIntensity) * lerpSpeed;
+
+    // Apply to lights
+    directionalLight.intensity = visualState.currentLightIntensity;
+    ambientLight.intensity = visualState.currentAmbientIntensity;
+
+    // Smooth color transitions
+    visualState.currentLightColor.lerp(visualState.targetLightColor, lerpSpeed);
+    visualState.currentAmbientColor.lerp(visualState.targetAmbientColor, lerpSpeed);
+
+    directionalLight.color.copy(visualState.currentLightColor);
+    ambientLight.color.copy(visualState.currentAmbientColor);
+
+    // Smooth fog transition
+    visualState.currentFogDensity += (visualState.targetFogDensity - visualState.currentFogDensity) * lerpSpeed;
+
+    if (visualState.currentFogDensity > 0.001) {
+        if (!scene.fog) {
+            scene.fog = new THREE.FogExp2(0x888888, visualState.currentFogDensity);
+        }
+        scene.fog.density = visualState.currentFogDensity;
+        // Tint fog color based on lighting
+        scene.fog.color.lerp(visualState.currentAmbientColor, 0.5);
+    } else if (scene.fog) {
+        scene.fog = null;
+    }
+}
+
+function createBackgroundEnvironment() {
+    // Clear existing background objects
+    backgroundObjects.forEach(obj => scene.remove(obj));
+    backgroundObjects = [];
+
+    // Create distant mountains (low-poly for performance)
+    const mountainColors = [0x5d6d7e, 0x566573, 0x4d5656];
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const distance = 80 + Math.random() * 20;
+        const height = 15 + Math.random() * 25;
+
+        const mountainGeometry = new THREE.ConeGeometry(12 + Math.random() * 8, height, 6);
+        const mountainMaterial = new THREE.MeshLambertMaterial({
+            color: mountainColors[Math.floor(Math.random() * mountainColors.length)],
+            flatShading: true
+        });
+        const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+
+        mountain.position.set(
+            Math.cos(angle) * distance,
+            height / 2 - 5,
+            Math.sin(angle) * distance
+        );
+        mountain.rotation.y = Math.random() * Math.PI;
+
+        scene.add(mountain);
+        backgroundObjects.push(mountain);
+    }
+
+    // Create simple buildings/structures for scale
+    const buildingPositions = [
+        { x: -60, z: -40 },
+        { x: 50, z: -55 },
+        { x: -45, z: 60 },
+        { x: 65, z: 35 }
+    ];
+
+    buildingPositions.forEach(pos => {
+        const buildingHeight = 8 + Math.random() * 12;
+        const buildingGeometry = new THREE.BoxGeometry(4, buildingHeight, 4);
+        const buildingMaterial = new THREE.MeshLambertMaterial({
+            color: 0x424242,
+            flatShading: true
+        });
+        const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+        building.position.set(pos.x, buildingHeight / 2, pos.z);
+        building.castShadow = true;
+        scene.add(building);
+        backgroundObjects.push(building);
+    });
+
+    // Add floating clouds
+    for (let i = 0; i < 6; i++) {
+        const cloud = createCloud();
+        cloud.position.set(
+            (Math.random() - 0.5) * 120,
+            25 + Math.random() * 15,
+            (Math.random() - 0.5) * 120
+        );
+        cloud.userData.driftSpeed = (Math.random() - 0.5) * 0.02;
+        scene.add(cloud);
+        backgroundObjects.push(cloud);
+    }
+}
+
+function createCloud() {
+    const cloudGroup = new THREE.Group();
+    const cloudMaterial = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8
+    });
+
+    // Create cloud from multiple spheres
+    for (let i = 0; i < 5; i++) {
+        const size = 2 + Math.random() * 3;
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(size, 8, 6),
+            cloudMaterial
+        );
+        sphere.position.set(
+            (Math.random() - 0.5) * 6,
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 6
+        );
+        cloudGroup.add(sphere);
+    }
+
+    return cloudGroup;
+}
+
+function updateBackgroundAnimations() {
+    backgroundObjects.forEach(obj => {
+        // Animate clouds
+        if (obj.userData.driftSpeed !== undefined) {
+            obj.position.x += obj.userData.driftSpeed;
+            // Wrap around
+            if (obj.position.x > 70) obj.position.x = -70;
+            if (obj.position.x < -70) obj.position.x = 70;
+        }
+    });
+}
+
+function updateBallIdleAnimation() {
+    if (!playerBall || !gameState.inputEnabled) return;
+
+    // Only animate when not moving
+    const isMoving = gameState.velocity.length() > 0.01;
+
+    if (!isMoving) {
+        visualState.idleAnimationPhase += 0.05;
+
+        // Subtle breathing/pulse animation
+        const pulseScale = 1 + Math.sin(visualState.idleAnimationPhase) * 0.02;
+        playerBall.scale.setScalar(pulseScale);
+
+        // Gentle hover effect
+        const hoverOffset = Math.sin(visualState.idleAnimationPhase * 0.5) * 0.05;
+        playerBall.position.y = Math.max(BALL_RADIUS, playerBall.position.y + hoverOffset * 0.1);
+    } else {
+        // Reset scale when moving
+        playerBall.scale.setScalar(1);
+    }
+}
+
+function applyCameraShake() {
+    if (visualState.cameraShakeIntensity <= 0) return;
+
+    const shakeX = (Math.random() - 0.5) * visualState.cameraShakeIntensity * 0.3;
+    const shakeY = (Math.random() - 0.5) * visualState.cameraShakeIntensity * 0.2;
+    const shakeZ = (Math.random() - 0.5) * visualState.cameraShakeIntensity * 0.3;
+
+    camera.position.x += shakeX;
+    camera.position.y += shakeY;
+    camera.position.z += shakeZ;
+
+    // Decay shake intensity
+    visualState.cameraShakeIntensity *= 0.95;
+    if (visualState.cameraShakeIntensity < 0.01) {
+        visualState.cameraShakeIntensity = 0;
+    }
+}
+
+function triggerCameraShake(intensity = 1) {
+    visualState.cameraShakeIntensity = Math.min(3, visualState.cameraShakeIntensity + intensity);
+}
+
+function updateWeatherBasedEffects() {
+    // Apply camera shake during strong winds
+    if (choiceState.windStrength > 60) {
+        if (Math.random() < 0.02) {
+            triggerCameraShake(choiceState.windStrength / 100);
+        }
+    }
+
+    // Automatically adjust lighting based on atmospheric intensity
+    if (choiceState.stormApproaching && visualState.timeOfDay !== 'storm') {
+        setWeatherLighting('storm');
     }
 }
 
@@ -543,30 +811,44 @@ function createWeatherParticles(type = 'dust') {
         scene.remove(weatherParticles);
     }
 
-    const particleCount = type === 'snow' ? 500 : 200;
+    const particleCount = type === 'snow' ? 800 : 300;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const velocities = new Float32Array(particleCount * 3);
+    const phases = new Float32Array(particleCount); // For smooth motion
 
     for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 60;
-        positions[i * 3 + 1] = Math.random() * 30;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+        positions[i * 3] = (Math.random() - 0.5) * 80;
+        positions[i * 3 + 1] = Math.random() * 40;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 80;
 
-        velocities[i * 3] = (Math.random() - 0.5) * 0.1;
-        velocities[i * 3 + 1] = -Math.random() * 0.05 - 0.02;
-        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+        if (type === 'snow') {
+            // Slower, more gentle snow motion
+            velocities[i * 3] = (Math.random() - 0.5) * 0.03;
+            velocities[i * 3 + 1] = -Math.random() * 0.03 - 0.01;
+            velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.03;
+        } else {
+            velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+            velocities[i * 3 + 1] = -Math.random() * 0.05 - 0.02;
+            velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+        }
+
+        // Random phase for varied motion
+        phases[i] = Math.random() * Math.PI * 2;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.userData.velocities = velocities;
+    geometry.userData.phases = phases;
+    geometry.userData.time = 0;
 
     const color = type === 'snow' ? 0xffffff : type === 'dust' ? 0xd4c4a8 : 0x888888;
     const material = new THREE.PointsMaterial({
-        size: type === 'snow' ? 0.15 : 0.1,
+        size: type === 'snow' ? 0.2 : 0.12,
         color: color,
         transparent: true,
-        opacity: 0.6
+        opacity: type === 'snow' ? 0.8 : 0.6,
+        sizeAttenuation: true
     });
 
     weatherParticles = new THREE.Points(geometry, material);
@@ -579,25 +861,44 @@ function updateWeatherParticles() {
 
     const positions = weatherParticles.geometry.attributes.position.array;
     const velocities = weatherParticles.geometry.userData.velocities;
+    const phases = weatherParticles.geometry.userData.phases;
     const windEffect = choiceState.windStrength / 100;
+    const isSnow = weatherParticles.userData.type === 'snow';
 
-    for (let i = 0; i < positions.length; i += 3) {
-        positions[i] += velocities[i] + windEffect * 0.1;
-        positions[i + 1] += velocities[i + 1];
-        positions[i + 2] += velocities[i + 2];
+    // Increment time for smooth animation
+    weatherParticles.geometry.userData.time += 0.02;
+    const time = weatherParticles.geometry.userData.time;
+
+    for (let i = 0; i < positions.length / 3; i++) {
+        const idx = i * 3;
+
+        if (isSnow) {
+            // Smooth swaying motion for snow using sine waves
+            const phase = phases[i];
+            const swayX = Math.sin(time + phase) * 0.02;
+            const swayZ = Math.cos(time * 0.7 + phase) * 0.015;
+
+            positions[idx] += velocities[idx] + windEffect * 0.05 + swayX;
+            positions[idx + 1] += velocities[idx + 1];
+            positions[idx + 2] += velocities[idx + 2] + swayZ;
+        } else {
+            positions[idx] += velocities[idx] + windEffect * 0.1;
+            positions[idx + 1] += velocities[idx + 1];
+            positions[idx + 2] += velocities[idx + 2];
+        }
 
         // Reset particle if it falls below ground
-        if (positions[i + 1] < 0) {
-            positions[i + 1] = 30;
-            positions[i] = (Math.random() - 0.5) * 60;
-            positions[i + 2] = (Math.random() - 0.5) * 60;
+        if (positions[idx + 1] < 0) {
+            positions[idx + 1] = 40;
+            positions[idx] = (Math.random() - 0.5) * 80;
+            positions[idx + 2] = (Math.random() - 0.5) * 80;
         }
 
         // Wrap around boundaries
-        if (positions[i] > 30) positions[i] = -30;
-        if (positions[i] < -30) positions[i] = 30;
-        if (positions[i + 2] > 30) positions[i + 2] = -30;
-        if (positions[i + 2] < -30) positions[i + 2] = 30;
+        if (positions[idx] > 40) positions[idx] = -40;
+        if (positions[idx] < -40) positions[idx] = 40;
+        if (positions[idx + 2] > 40) positions[idx + 2] = -40;
+        if (positions[idx + 2] < -40) positions[idx + 2] = 40;
     }
 
     weatherParticles.geometry.attributes.position.needsUpdate = true;
@@ -1042,6 +1343,12 @@ function createSceneA() {
     // Add atmospheric dust particles
     createWeatherParticles('dust');
 
+    // Create background environment (mountains, buildings, clouds)
+    createBackgroundEnvironment();
+
+    // Set weather lighting for daytime
+    setWeatherLighting('day');
+
     // Atmospheric intro
     setTimeout(() => {
         showAtmosphericText('The journey begins... Choose your path wisely.', 4000);
@@ -1168,6 +1475,10 @@ function createSceneB() {
     updateWindIndicator();
     createWeatherParticles('dust');
 
+    // Create background and set dusk lighting for scene B
+    createBackgroundEnvironment();
+    setWeatherLighting('dusk');
+
     updateUI();
 }
 
@@ -1199,6 +1510,10 @@ function createDarkScene() {
     setTimeout(() => {
         showAtmosphericText('Darkness consumes all light...', 3000);
     }, 1500);
+
+    // Set storm lighting for dark scene
+    setWeatherLighting('storm');
+    triggerCameraShake(0.5); // Initial impact shake
 
     // Handle ball type specific behavior
     handleDarkSceneEffect();
@@ -1256,6 +1571,10 @@ function createRedScene() {
     setTimeout(() => {
         showAtmosphericText('The crimson void hungers...', 3000);
     }, 1500);
+
+    // Set warm/hot lighting for red scene
+    setWeatherLighting('warm');
+    triggerCameraShake(0.8); // Strong entry shake
 
     handleRedSceneEffect();
 
@@ -1315,6 +1634,10 @@ function createBlueScene() {
     // Add snow particles for blue scene
     createWeatherParticles('snow');
 
+    // Set cold lighting for blue scene
+    setWeatherLighting('cold');
+    triggerCameraShake(0.3); // Gentle entry shake
+
     handleBlueSceneEffect();
 
     updateUI();
@@ -1331,6 +1654,7 @@ function handleDarkSceneEffect() {
         modifyResources(-20, -50, -10); // Massive stability loss
         setTimeout(() => {
             createShatterEffect(playerBall.position.clone());
+            triggerCameraShake(2); // Strong shake on shatter
             scene.remove(playerBall);
             playerBall = null;
             showMessage('Glass Ball Shattered!');
@@ -1343,6 +1667,7 @@ function handleDarkSceneEffect() {
         modifyResources(-30, -10, -15); // Energy drained
         setTimeout(() => {
             createExtinguishEffect(playerBall.position.clone());
+            triggerCameraShake(1.5); // Moderate shake on extinguish
             scene.remove(playerBall);
             playerBall = null;
             showMessage('Fire Ball Extinguished!');
@@ -1969,6 +2294,13 @@ function animate() {
     updateLoreHotspots();
     checkLoreHotspotCollision();
     updateWeatherParticles();
+
+    // Update visual enhancements
+    updateLightingTransitions();
+    updateBackgroundAnimations();
+    updateBallIdleAnimation();
+    applyCameraShake();
+    updateWeatherBasedEffects();
 
     renderer.render(scene, camera);
 }
