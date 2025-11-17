@@ -24,7 +24,7 @@ const SCENES = {
 };
 
 const BALL_RADIUS = 1;
-const MOVE_SPEED = 0.15;
+const MOVE_SPEED = 0.08;
 const ROTATION_SPEED = 0.05;
 const CAMERA_DISTANCE = 10;
 const CAMERA_HEIGHT = 6;
@@ -317,12 +317,15 @@ function createSceneA() {
     scene.add(bouncyBall);
     selectableBalls.push(bouncyBall);
 
-    // Create ramp to Scene B
-    const rampGeometry = new THREE.BoxGeometry(10, 0.5, 15);
-    const rampMaterial = new THREE.MeshStandardMaterial({ color: 0x795548 });
+    // Create ramp/path indicator to Scene B
+    const rampGeometry = new THREE.BoxGeometry(10, 0.2, 20);
+    const rampMaterial = new THREE.MeshStandardMaterial({
+        color: 0x795548,
+        emissive: 0x4e342e,
+        emissiveIntensity: 0.2
+    });
     const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
-    ramp.position.set(0, -3.5, 20);
-    ramp.rotation.x = Math.PI / 8;
+    ramp.position.set(0, 0.1, 18);
     ramp.receiveShadow = true;
     ramp.castShadow = true;
     scene.add(ramp);
@@ -336,18 +339,31 @@ function createSceneA() {
         emissiveIntensity: 0.3
     });
     const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    arrow.position.set(0, 3, 15);
+    arrow.position.set(0, 3, 20);
     arrow.rotation.x = Math.PI / 2;
     scene.add(arrow);
     sceneObjects.push(arrow);
 
-    // Trigger zone for Scene B
-    const triggerGeometry = new THREE.BoxGeometry(10, 2, 2);
+    // Portal visual for Scene B entrance
+    const portalGeometry = new THREE.TorusGeometry(3, 0.3, 16, 32);
+    const portalMaterial = new THREE.MeshStandardMaterial({
+        color: 0x5c6bc0,
+        emissive: 0x3f51b5,
+        emissiveIntensity: 0.5
+    });
+    const portal = new THREE.Mesh(portalGeometry, portalMaterial);
+    portal.position.set(0, 3, 24);
+    portal.rotation.x = Math.PI / 2;
+    scene.add(portal);
+    sceneObjects.push(portal);
+
+    // Trigger zone for Scene B (at ground level where ball can reach)
+    const triggerGeometry = new THREE.BoxGeometry(8, 4, 4);
     const triggerMaterial = new THREE.MeshBasicMaterial({
         visible: false
     });
     const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-    trigger.position.set(0, -5, 25);
+    trigger.position.set(0, 2, 24);
     trigger.userData.isTrigger = true;
     trigger.userData.targetScene = SCENES.B;
     scene.add(trigger);
