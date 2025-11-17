@@ -57,6 +57,13 @@ let choiceState = {
     stormApproaching: false
 };
 
+// Resource management system
+let resources = {
+    energy: 100,      // Ball's core energy (0-100)
+    stability: 100,   // Structural integrity (0-100)
+    harmony: 50       // Balance with environment (0-100)
+};
+
 // Lore and world-building data
 const LORE_DATA = {
     fire_origin: {
@@ -194,6 +201,59 @@ windIndicator.id = 'wind-indicator';
 windIndicator.innerHTML = 'Wind: <span id="wind-level">Calm</span>';
 document.body.appendChild(windIndicator);
 
+// Create resource panel
+const resourcePanel = document.createElement('div');
+resourcePanel.id = 'resource-panel';
+resourcePanel.innerHTML = `
+    <div class="resource-title">Resources</div>
+    <div class="resource-item">
+        <span class="resource-label">Energy</span>
+        <div class="resource-bar">
+            <div id="energy-bar" class="resource-fill energy"></div>
+        </div>
+        <span id="energy-value" class="resource-value">100</span>
+    </div>
+    <div class="resource-item">
+        <span class="resource-label">Stability</span>
+        <div class="resource-bar">
+            <div id="stability-bar" class="resource-fill stability"></div>
+        </div>
+        <span id="stability-value" class="resource-value">100</span>
+    </div>
+    <div class="resource-item">
+        <span class="resource-label">Harmony</span>
+        <div class="resource-bar">
+            <div id="harmony-bar" class="resource-fill harmony"></div>
+        </div>
+        <span id="harmony-value" class="resource-value">50</span>
+    </div>
+`;
+document.body.appendChild(resourcePanel);
+
+// Create ending screen
+const endingScreen = document.createElement('div');
+endingScreen.id = 'ending-screen';
+endingScreen.innerHTML = `
+    <div id="ending-title" class="ending-title"></div>
+    <div id="ending-description" class="ending-description"></div>
+    <div class="ending-stats">
+        <p>Scenes Survived: <span id="stat-survived">0</span></p>
+        <p>Total Falls: <span id="stat-deaths">0</span></p>
+        <p>Lore Discovered: <span id="stat-lore">0</span></p>
+        <p>Final Energy: <span id="stat-energy">0</span></p>
+        <p>Final Stability: <span id="stat-stability">0</span></p>
+        <p>Final Harmony: <span id="stat-harmony">0</span></p>
+    </div>
+    <button id="ending-restart">Play Again</button>
+`;
+document.body.appendChild(endingScreen);
+
+// Ending restart button handler
+document.getElementById('ending-restart').addEventListener('click', () => {
+    endingScreen.classList.remove('show');
+    resetGame();
+});
+
 // Lore popup close handler
 document.getElementById('lore-close').addEventListener('click', () => {
     lorePopup.classList.add('hidden');
@@ -243,6 +303,156 @@ function updateWindIndicator() {
         windLevel.textContent = 'Storm';
         windLevel.style.color = '#f44336';
     }
+}
+
+function updateResourceUI() {
+    // Clamp values between 0 and 100
+    resources.energy = Math.max(0, Math.min(100, resources.energy));
+    resources.stability = Math.max(0, Math.min(100, resources.stability));
+    resources.harmony = Math.max(0, Math.min(100, resources.harmony));
+
+    // Update bars
+    document.getElementById('energy-bar').style.width = resources.energy + '%';
+    document.getElementById('stability-bar').style.width = resources.stability + '%';
+    document.getElementById('harmony-bar').style.width = resources.harmony + '%';
+
+    // Update values
+    document.getElementById('energy-value').textContent = Math.round(resources.energy);
+    document.getElementById('stability-value').textContent = Math.round(resources.stability);
+    document.getElementById('harmony-value').textContent = Math.round(resources.harmony);
+
+    // Color coding based on levels
+    const energyBar = document.getElementById('energy-bar');
+    const stabilityBar = document.getElementById('stability-bar');
+    const harmonyBar = document.getElementById('harmony-bar');
+
+    // Energy color
+    if (resources.energy < 30) energyBar.style.background = '#f44336';
+    else if (resources.energy < 60) energyBar.style.background = '#ff9800';
+    else energyBar.style.background = '#4caf50';
+
+    // Stability color
+    if (resources.stability < 30) stabilityBar.style.background = '#f44336';
+    else if (resources.stability < 60) stabilityBar.style.background = '#ff9800';
+    else stabilityBar.style.background = '#2196f3';
+
+    // Harmony color
+    if (resources.harmony < 30) harmonyBar.style.background = '#f44336';
+    else if (resources.harmony < 70) harmonyBar.style.background = '#9c27b0';
+    else harmonyBar.style.background = '#e91e63';
+}
+
+function modifyResources(energyDelta, stabilityDelta, harmonyDelta) {
+    resources.energy += energyDelta;
+    resources.stability += stabilityDelta;
+    resources.harmony += harmonyDelta;
+    updateResourceUI();
+
+    // Check for ending conditions
+    checkEndingCondition();
+}
+
+function checkEndingCondition() {
+    // Trigger ending after 3 survived scenes or if resources are critically low/high
+    const totalExperiences = choiceState.survivedScenes + choiceState.totalDeaths;
+
+    if (totalExperiences >= 3) {
+        setTimeout(() => {
+            determineEnding();
+        }, 2000);
+    }
+}
+
+function determineEnding() {
+    let endingType = 'neutral';
+    let title = '';
+    let description = '';
+    let titleColor = '#fff';
+
+    // Calculate overall performance
+    const avgResource = (resources.energy + resources.stability + resources.harmony) / 3;
+    const survivalRate = choiceState.survivedScenes / Math.max(1, choiceState.survivedScenes + choiceState.totalDeaths);
+
+    if (survivalRate >= 0.66 && avgResource >= 70) {
+        // Enlightened Ending - High survival, good resources
+        endingType = 'enlightened';
+        title = 'Enlightened Traveler';
+        description = 'Through wisdom and careful choices, you have mastered the art of transformation. Your journey through the realms has strengthened your essence, achieving perfect harmony between energy, stability, and the world around you. The paths are no longer mysteries, but familiar friends.';
+        titleColor = '#ffd700';
+    } else if (survivalRate <= 0.33 || avgResource <= 30) {
+        // Shattered Ending - Low survival or depleted resources
+        endingType = 'shattered';
+        title = 'Shattered Essence';
+        description = 'The realms have taken their toll. Each transformation pushed you further from your core, and the void has claimed more than you could spare. Your essence is scattered across dimensions, a cautionary tale for future travelers. Perhaps another path awaits...';
+        titleColor = '#f44336';
+    } else {
+        // Wanderer Ending - Mixed results
+        endingType = 'wanderer';
+        title = 'Eternal Wanderer';
+        description = 'Neither master nor victim, you walk the middle path. Some victories, some losses, but always moving forward. The realms respect your persistence, and though harmony eludes you, your journey continues. There are still secrets to uncover...';
+        titleColor = '#64b5f6';
+    }
+
+    showEnding(title, description, titleColor);
+}
+
+function showEnding(title, description, titleColor) {
+    gameState.inputEnabled = false;
+
+    // Update ending screen content
+    const endingTitle = document.getElementById('ending-title');
+    endingTitle.textContent = title;
+    endingTitle.style.color = titleColor;
+
+    document.getElementById('ending-description').textContent = description;
+
+    // Update stats
+    document.getElementById('stat-survived').textContent = choiceState.survivedScenes;
+    document.getElementById('stat-deaths').textContent = choiceState.totalDeaths;
+    document.getElementById('stat-lore').textContent = choiceState.exploredLore.length;
+    document.getElementById('stat-energy').textContent = Math.round(resources.energy);
+    document.getElementById('stat-stability').textContent = Math.round(resources.stability);
+    document.getElementById('stat-harmony').textContent = Math.round(resources.harmony);
+
+    // Show the ending screen
+    endingScreen.classList.add('show');
+}
+
+function resetGame() {
+    // Reset all game state
+    gameState.currentBallType = BALL_TYPES.INITIAL;
+    gameState.currentScene = SCENES.A;
+    gameState.inputEnabled = true;
+    gameState.isTransitioning = false;
+    gameState.velocity.set(0, 0, 0);
+    gameState.onGround = true;
+
+    // Reset choice state
+    choiceState.ballsChosen = [];
+    choiceState.holesEntered = [];
+    choiceState.survivedScenes = 0;
+    choiceState.totalDeaths = 0;
+    choiceState.exploredLore = [];
+    choiceState.atmosphericIntensity = 0;
+    choiceState.windStrength = 0;
+    choiceState.stormApproaching = false;
+
+    // Reset resources
+    resources.energy = 100;
+    resources.stability = 100;
+    resources.harmony = 50;
+    updateResourceUI();
+
+    // Reset lore discovery
+    Object.keys(LORE_DATA).forEach(key => {
+        LORE_DATA[key].discovered = false;
+    });
+
+    // Reset wind indicator
+    updateWindIndicator();
+
+    // Restart Scene A
+    createSceneA();
 }
 
 function triggerAtmosphericEvent(eventType) {
@@ -1117,6 +1327,8 @@ function handleDarkSceneEffect() {
     if (gameState.currentBallType === BALL_TYPES.GLASS) {
         // Glass Ball shatters
         gameState.inputEnabled = false;
+        choiceState.totalDeaths++;
+        modifyResources(-20, -50, -10); // Massive stability loss
         setTimeout(() => {
             createShatterEffect(playerBall.position.clone());
             scene.remove(playerBall);
@@ -1127,6 +1339,8 @@ function handleDarkSceneEffect() {
     } else if (gameState.currentBallType === BALL_TYPES.FIRE) {
         // Fire Ball extinguishes
         gameState.inputEnabled = false;
+        choiceState.totalDeaths++;
+        modifyResources(-30, -10, -15); // Energy drained
         setTimeout(() => {
             createExtinguishEffect(playerBall.position.clone());
             scene.remove(playerBall);
@@ -1136,6 +1350,8 @@ function handleDarkSceneEffect() {
         }, 1000);
     } else if (gameState.currentBallType === BALL_TYPES.BOUNCY) {
         // Bouncy Ball bounces twice then can exit
+        choiceState.survivedScenes++;
+        modifyResources(5, 10, 15); // Resilience rewarded
         let bounceCount = 0;
         const bounceInterval = setInterval(() => {
             if (bounceCount < 2) {
@@ -1175,6 +1391,8 @@ function handleRedSceneEffect() {
         gameState.currentBallType === BALL_TYPES.BOUNCY) {
         // Glass or Bouncy falls through
         gameState.inputEnabled = false;
+        choiceState.totalDeaths++;
+        modifyResources(-15, -25, -20); // Lost in the void
         setTimeout(() => {
             createRippleEffect(playerBall.position.clone());
             setTimeout(() => {
@@ -1184,8 +1402,11 @@ function handleRedSceneEffect() {
                 setTimeout(() => transitionToScene(SCENES.A, true), 1500);
             }, 500);
         }, 1000);
+    } else if (gameState.currentBallType === BALL_TYPES.FIRE) {
+        // Fire Ball survives and can continue moving
+        choiceState.survivedScenes++;
+        modifyResources(20, 5, 25); // Fire thrives in red
     }
-    // Fire Ball can continue moving
 }
 
 function handleBlueSceneEffect() {
@@ -1193,6 +1414,8 @@ function handleBlueSceneEffect() {
         gameState.currentBallType === BALL_TYPES.BOUNCY) {
         // Fire or Bouncy disappears instantly
         gameState.inputEnabled = false;
+        choiceState.totalDeaths++;
+        modifyResources(-25, -15, -30); // Harmony disrupted
         setTimeout(() => {
             createDisappearEffect(playerBall.position.clone());
             scene.remove(playerBall);
@@ -1201,7 +1424,9 @@ function handleBlueSceneEffect() {
             setTimeout(() => transitionToScene(SCENES.A, true), 1500);
         }, 500);
     } else if (gameState.currentBallType === BALL_TYPES.GLASS) {
-        // Glass Ball bounces
+        // Glass Ball bounces and survives
+        choiceState.survivedScenes++;
+        modifyResources(10, 15, 30); // Glass finds harmony in blue
         let bounced = false;
         const checkBounce = () => {
             if (!bounced && playerBall && playerBall.position.y <= BALL_RADIUS + 0.1) {
@@ -1547,16 +1772,19 @@ function checkCollisions() {
                     choiceState.atmosphericIntensity += 10;
                     choiceState.windStrength = Math.min(100, choiceState.windStrength + 15);
                     updateWindIndicator();
+                    modifyResources(15, -10, 10); // Fire: high energy, less stability, more harmony
                     setTimeout(() => {
                         showAtmosphericText('You feel the heat of determination coursing through you...', 3500);
                     }, 1500);
                 } else if (newType === BALL_TYPES.GLASS) {
                     choiceState.atmosphericIntensity -= 5;
+                    modifyResources(-5, -15, 20); // Glass: fragile but harmonious
                     setTimeout(() => {
                         showAtmosphericText('Clarity fills your mind, but fragility shadows your path...', 3500);
                     }, 1500);
                 } else if (newType === BALL_TYPES.BOUNCY) {
                     choiceState.atmosphericIntensity += 5;
+                    modifyResources(10, 20, -5); // Bouncy: resilient and stable
                     setTimeout(() => {
                         showAtmosphericText('Resilience becomes your shield against the unknown...', 3500);
                     }, 1500);
@@ -1753,6 +1981,10 @@ function init() {
     setTimeout(() => {
         loadingScreen.classList.add('hidden');
     }, 1000);
+
+    // Initialize resource UI
+    updateResourceUI();
+    updateWindIndicator();
 
     // Initialize Scene A
     createSceneA();
