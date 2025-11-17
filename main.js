@@ -24,7 +24,7 @@ const SCENES = {
 };
 
 const BALL_RADIUS = 1;
-const MOVE_SPEED = 0.08;
+const MOVE_SPEED = 0.04;
 const ROTATION_SPEED = 0.05;
 const CAMERA_DISTANCE = 10;
 const CAMERA_HEIGHT = 6;
@@ -317,7 +317,7 @@ function createSceneA() {
     scene.add(bouncyBall);
     selectableBalls.push(bouncyBall);
 
-    // Create ramp/path indicator to Scene B
+    // Create ramp/path indicator to Scene B (in front of player)
     const rampGeometry = new THREE.BoxGeometry(10, 0.2, 20);
     const rampMaterial = new THREE.MeshStandardMaterial({
         color: 0x795548,
@@ -325,7 +325,7 @@ function createSceneA() {
         emissiveIntensity: 0.2
     });
     const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
-    ramp.position.set(0, 0.1, 18);
+    ramp.position.set(0, 0.1, -18);
     ramp.receiveShadow = true;
     ramp.castShadow = true;
     scene.add(ramp);
@@ -339,8 +339,8 @@ function createSceneA() {
         emissiveIntensity: 0.3
     });
     const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    arrow.position.set(0, 3, 20);
-    arrow.rotation.x = Math.PI / 2;
+    arrow.position.set(0, 3, -20);
+    arrow.rotation.x = -Math.PI / 2;
     scene.add(arrow);
     sceneObjects.push(arrow);
 
@@ -352,7 +352,7 @@ function createSceneA() {
         emissiveIntensity: 0.5
     });
     const portal = new THREE.Mesh(portalGeometry, portalMaterial);
-    portal.position.set(0, 3, 24);
+    portal.position.set(0, 3, -24);
     portal.rotation.x = Math.PI / 2;
     scene.add(portal);
     sceneObjects.push(portal);
@@ -363,7 +363,7 @@ function createSceneA() {
         visible: false
     });
     const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-    trigger.position.set(0, 2, 24);
+    trigger.position.set(0, 2, -24);
     trigger.userData.isTrigger = true;
     trigger.userData.targetScene = SCENES.B;
     scene.add(trigger);
@@ -390,16 +390,16 @@ function createSceneB() {
     scene.add(ground);
     sceneObjects.push(ground);
 
-    // Create player ball with current type
-    playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS, -15));
+    // Create player ball with current type (start at back, holes in front)
+    playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS, 15));
     scene.add(playerBall);
 
-    // Create three holes
+    // Create three holes (in front of player - negative z direction)
     const holeColors = [0x424242, 0xc62828, 0x1565c0];
     const holePositions = [
-        new THREE.Vector3(-10, 0, 10),
-        new THREE.Vector3(0, 0, 10),
-        new THREE.Vector3(10, 0, 10)
+        new THREE.Vector3(-10, 0, -10),
+        new THREE.Vector3(0, 0, -10),
+        new THREE.Vector3(10, 0, -10)
     ];
     const holeScenes = [SCENES.DARK, SCENES.RED, SCENES.BLUE];
 
