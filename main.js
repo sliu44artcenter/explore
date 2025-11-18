@@ -1466,7 +1466,7 @@ const portalFragmentShader = `
  * @param {string} type - 'gray', 'red', or 'blue'
  * @param {THREE.Vector3} position - Portal position
  * @param {THREE.Scene} targetScene - Target scene constant
- * @returns {THREE.Group} Portal group
+ * @returns {Object} Object with portalGroup and targetScene (trigger added separately)
  */
 function makePortal(type, position, targetScene) {
     const portalGroup = new THREE.Group();
@@ -1579,16 +1579,8 @@ function makePortal(type, position, targetScene) {
     particles.userData.portalType = type;
     portalGroup.add(particles);
 
-    // 5. TRIGGER ZONE (invisible collision detector)
-    const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 64);
-    const triggerMaterial = new THREE.MeshBasicMaterial({ visible: false });
-    const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-    trigger.userData.isTrigger = true;
-    trigger.userData.targetScene = targetScene;
-    trigger.userData.isHole = true;
-    portalGroup.add(trigger);
-
-    return portalGroup;
+    // Return portal group (trigger will be added separately at scene level)
+    return { portalGroup, targetScene };
 }
 
 /**
@@ -1668,9 +1660,20 @@ function createSceneB() {
 
     for (let i = 0; i < 3; i++) {
         // Create upgraded 3D portal with shader, particles, and lighting
-        const portal = makePortal(portalTypes[i], portalPositions[i], portalScenes[i]);
-        scene.add(portal);
-        sceneObjects.push(portal);
+        const portalData = makePortal(portalTypes[i], portalPositions[i], portalScenes[i]);
+        scene.add(portalData.portalGroup);
+        sceneObjects.push(portalData.portalGroup);
+
+        // Create trigger zone separately at scene level for collision detection
+        const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 64);
+        const triggerMaterial = new THREE.MeshBasicMaterial({ visible: false });
+        const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
+        trigger.position.copy(portalPositions[i]);
+        trigger.userData.isTrigger = true;
+        trigger.userData.targetScene = portalData.targetScene;
+        trigger.userData.isHole = true;
+        scene.add(trigger);
+        sceneObjects.push(trigger);
 
         // Portal label
         const labelGeometry = new THREE.PlaneGeometry(5, 1);
