@@ -2309,8 +2309,11 @@ function createRedScene() {
 
     const groundGeometry = new THREE.PlaneGeometry(40, 40);
     const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0xc62828,
-        roughness: 0.6
+        color: 0xff0000,           // Pure red color
+        emissive: 0xff0000,        // Red glow
+        emissiveIntensity: 0.6,    // Moderate glow intensity for lava effect
+        roughness: 0.3,            // Smoother surface like molten lava
+        metalness: 0.1
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
