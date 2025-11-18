@@ -50,7 +50,8 @@ let gameState = {
     inputEnabled: true,
     isTransitioning: false,
     velocity: new THREE.Vector3(),
-    onGround: true
+    onGround: true,
+    floorRadius: 25 // Current floor radius (changes per scene)
 };
 
 // ============================================================================
@@ -1768,6 +1769,7 @@ function clearScene() {
 function createSceneA() {
     clearScene();
     gameState.currentScene = SCENES.A;
+    gameState.floorRadius = 25; // Set floor radius for this scene
 
     // Check if returning after death - apply corrupted visuals
     const isCorrupted = choiceState.justDied;
@@ -2181,6 +2183,7 @@ function updatePortalAnimations() {
 function createSceneB() {
     clearScene();
     gameState.currentScene = SCENES.B;
+    gameState.floorRadius = 30; // Set floor radius for this scene
 
     // Set rich background for Scene B
     if (backgroundManager) {
@@ -2291,6 +2294,7 @@ function createSceneB() {
 function createDarkScene() {
     clearScene();
     gameState.currentScene = SCENES.DARK;
+    gameState.floorRadius = 20; // Set floor radius for this scene
 
     // Set rich background for Dark Scene
     if (backgroundManager) {
@@ -2336,6 +2340,7 @@ function createDarkScene() {
 function createRedScene() {
     clearScene();
     gameState.currentScene = SCENES.RED;
+    gameState.floorRadius = 20; // Set floor radius for this scene
 
     // Set rich background for Red Scene
     if (backgroundManager) {
@@ -2405,6 +2410,7 @@ function createRedScene() {
 function createBlueScene() {
     clearScene();
     gameState.currentScene = SCENES.BLUE;
+    gameState.floorRadius = 20; // Set floor radius for this scene
 
     // Set rich background for Blue Scene
     if (backgroundManager) {
@@ -2593,6 +2599,27 @@ function handleBlueSceneEffect() {
         };
         setTimeout(checkBounce, 1000);
     }
+}
+
+function handleFallOffDeath() {
+    if (gameState.isTransitioning || !playerBall) return;
+
+    // Prevent multiple death triggers
+    gameState.isTransitioning = true;
+    gameState.inputEnabled = false;
+    choiceState.totalDeaths++;
+    choiceState.justDied = true; // Mark death for persistent effects
+    modifyResources(-15, -20, -15); // Penalty for falling off
+
+    // Create falling effect message
+    showMessage('You fell off the platform!');
+
+    // Wait a moment, then restart
+    setTimeout(() => {
+        scene.remove(playerBall);
+        playerBall = null;
+        setTimeout(() => transitionToScene(SCENES.A, true), 1000);
+    }, 1000);
 }
 
 // ============================================================================
@@ -2894,8 +2921,14 @@ function handleMovement() {
     playerBall.position.z += gameState.velocity.z;
     playerBall.position.y += gameState.velocity.y;
 
-    // Ground collision
-    if (playerBall.position.y < BALL_RADIUS) {
+    // Ground collision - only if within floor radius
+    const distanceFromCenter = Math.sqrt(
+        playerBall.position.x * playerBall.position.x +
+        playerBall.position.z * playerBall.position.z
+    );
+
+    if (playerBall.position.y < BALL_RADIUS && distanceFromCenter <= gameState.floorRadius) {
+        // Ball is above the floor platform
         playerBall.position.y = BALL_RADIUS;
         if (gameState.velocity.y < 0) {
             if (gameState.currentBallType === BALL_TYPES.BOUNCY) {
@@ -2905,14 +2938,17 @@ function handleMovement() {
             }
         }
         gameState.onGround = true;
+    } else if (distanceFromCenter > gameState.floorRadius && playerBall.position.y < BALL_RADIUS) {
+        // Ball is beyond floor edge - let it fall
+        gameState.onGround = false;
     } else {
         gameState.onGround = false;
     }
 
-    // Boundary check
-    const boundary = 25;
-    playerBall.position.x = Math.max(-boundary, Math.min(boundary, playerBall.position.x));
-    playerBall.position.z = Math.max(-boundary, Math.min(boundary, playerBall.position.z));
+    // Check if ball has fallen too far (fell off the platform)
+    if (playerBall.position.y < -10) {
+        handleFallOffDeath();
+    }
 }
 
 function checkCollisions() {
