@@ -2933,6 +2933,9 @@ function handleMovement() {
 
     // Ball is outside the floor - let it fall, no ground collision
     if (distanceFromCenter > gameState.floorRadius) {
+        if (gameState.onGround) {
+            console.log('Ball leaving floor edge! Distance:', distanceFromCenter, 'Floor radius:', gameState.floorRadius);
+        }
         gameState.onGround = false;
         // Ball falls naturally with gravity
     }
@@ -2956,10 +2959,17 @@ function handleMovement() {
 
 function checkFallOff() {
     // Always check if ball has fallen off, regardless of input state
-    if (!playerBall || gameState.isTransitioning) return;
+    if (!playerBall) return;
+    if (gameState.isTransitioning) return;
+
+    // Debug: Log ball position when it's falling
+    if (playerBall.position.y < 0) {
+        console.log('Ball falling - Y position:', playerBall.position.y);
+    }
 
     // Check if ball has fallen too far (fell off the platform)
     if (playerBall.position.y < -10) {
+        console.log('Fall-off death triggered at Y:', playerBall.position.y);
         handleFallOffDeath();
     }
 }
@@ -3163,9 +3173,62 @@ function hideRestartButton() {
     restartBtn.classList.add('hidden');
 }
 
-restartBtn.addEventListener('click', () => {
-    hideRestartButton();
+function completeGameReset() {
+    console.log('Complete game reset initiated');
+
+    // Reset all game state
+    gameState.currentBallType = BALL_TYPES.INITIAL;
+    gameState.currentScene = SCENES.A;
+    gameState.inputEnabled = true;
+    gameState.isTransitioning = false;
+    gameState.velocity.set(0, 0, 0);
+    gameState.onGround = true;
+    gameState.floorRadius = 25;
+
+    // Reset choice state
+    choiceState.ballsChosen = [];
+    choiceState.holesEntered = [];
+    choiceState.survivedScenes = 0;
+    choiceState.totalDeaths = 0;
+    choiceState.exploredLore = [];
+    choiceState.atmosphericIntensity = 0;
+    choiceState.windStrength = 0;
+    choiceState.stormApproaching = false;
+    choiceState.justDied = false;
+
+    // Reset resources
+    resources.energy = 100;
+    resources.stability = 100;
+    resources.harmony = 50;
+
+    // Reset visual state
+    visualState.targetFogDensity = 0;
+    visualState.currentFogDensity = 0;
+    visualState.targetLightIntensity = 1;
+    visualState.currentLightIntensity = 1;
+    visualState.targetAmbientIntensity = 0.4;
+    visualState.currentAmbientIntensity = 0.4;
+    visualState.targetLightColor = new THREE.Color(0xffffff);
+    visualState.currentLightColor = new THREE.Color(0xffffff);
+    visualState.targetAmbientColor = new THREE.Color(0xffffff);
+    visualState.currentAmbientColor = new THREE.Color(0xffffff);
+    visualState.cameraShakeIntensity = 0;
+    visualState.idleAnimationPhase = 0;
+    visualState.timeOfDay = 'day';
+
+    // Reset lore discovery (optional - you can keep progress if desired)
+    for (let key in LORE_DATA) {
+        LORE_DATA[key].discovered = false;
+    }
+
+    // Recreate Scene A from scratch
     transitionToScene(SCENES.A, true);
+
+    console.log('Game reset complete');
+}
+
+restartBtn.addEventListener('click', () => {
+    completeGameReset();
 });
 
 // ============================================================================
