@@ -88,6 +88,540 @@ let backgroundObjects = [];
 const portalClock = new THREE.Clock();
 let portalMeshes = []; // Track portal surfaces for animation
 
+// Clock for background animations
+const bgClock = new THREE.Clock();
+
+// Background Manager instance
+let backgroundManager = null;
+
+// ============================================================================
+// BACKGROUND MANAGER SYSTEM
+// ============================================================================
+
+class BackgroundManager {
+    constructor(scene, camera) {
+        this.scene = scene;
+        this.camera = camera;
+        this.currentBackground = null;
+        this.backgroundObjects = [];
+        this.particleSystems = [];
+        this.animationData = {
+            time: 0,
+            lightningTimer: 0,
+            cloudOffset: 0
+        };
+    }
+
+    setBackground(sceneType) {
+        this.clearBackground();
+
+        switch(sceneType) {
+            case 'scene_a':
+            case 'initial':
+                this.createMountainSky();
+                break;
+            case 'scene_b':
+            case 'portal':
+                this.createWinterSnow();
+                break;
+            case 'scene_dark':
+            case 'dark':
+                this.createStormSky();
+                break;
+            case 'scene_red':
+            case 'red':
+                this.createVolcanicSky();
+                break;
+            case 'scene_blue':
+            case 'blue':
+                this.createSpringBloomSky();
+                break;
+        }
+    }
+
+    clearBackground() {
+        this.backgroundObjects.forEach(obj => this.scene.remove(obj));
+        this.backgroundObjects = [];
+        this.particleSystems.forEach(sys => this.scene.remove(sys));
+        this.particleSystems = [];
+        this.scene.fog = null;
+    }
+
+    createMountainSky() {
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x87ceeb) },
+                bottomColor: { value: new THREE.Color(0xffffff) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(sky);
+        this.backgroundObjects.push(sky);
+
+        this.scene.fog = new THREE.FogExp2(0xe8f4f8, 0.002);
+
+        for (let i = 0; i < 12; i++) {
+            const cloudGeo = new THREE.PlaneGeometry(40 + Math.random() * 30, 15 + Math.random() * 10);
+            const cloudMat = new THREE.MeshBasicMaterial({
+                color: 0xffd89b,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            const angle = (i / 12) * Math.PI * 2;
+            cloud.position.set(
+                Math.cos(angle) * (200 + Math.random() * 100),
+                60 + Math.random() * 40,
+                Math.sin(angle) * (200 + Math.random() * 100)
+            );
+            cloud.lookAt(this.camera.position);
+            cloud.userData.driftSpeed = 0.01 + Math.random() * 0.02;
+            cloud.userData.floatPhase = Math.random() * Math.PI * 2;
+            this.scene.add(cloud);
+            this.backgroundObjects.push(cloud);
+        }
+
+        const raysGeo = new THREE.BufferGeometry();
+        const raysCount = 200;
+        const raysPos = new Float32Array(raysCount * 3);
+        for (let i = 0; i < raysCount; i++) {
+            raysPos[i * 3] = (Math.random() - 0.5) * 300;
+            raysPos[i * 3 + 1] = Math.random() * 150 + 50;
+            raysPos[i * 3 + 2] = (Math.random() - 0.5) * 300;
+        }
+        raysGeo.setAttribute('position', new THREE.BufferAttribute(raysPos, 3));
+        const raysMat = new THREE.PointsMaterial({
+            color: 0xffd700,
+            size: 2,
+            transparent: true,
+            opacity: 0.1,
+            blending: THREE.AdditiveBlending
+        });
+        const rays = new THREE.Points(raysGeo, raysMat);
+        this.scene.add(rays);
+        this.particleSystems.push(rays);
+    }
+
+    createWinterSnow() {
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x4a5f7f) },
+                bottomColor: { value: new THREE.Color(0xb8d4e8) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(sky);
+        this.backgroundObjects.push(sky);
+
+        this.scene.fog = new THREE.FogExp2(0xccddee, 0.0025);
+
+        const housePositions = [
+            { x: -150, z: -200 }, { x: -80, z: -220 },
+            { x: 100, z: -180 }, { x: 150, z: -210 },
+            { x: -120, z: 180 }, { x: 90, z: 200 }
+        ];
+        housePositions.forEach(pos => {
+            const houseGeo = new THREE.BoxGeometry(15, 20 + Math.random() * 15, 15);
+            const houseMat = new THREE.MeshLambertMaterial({
+                color: 0x9eadb5,
+                transparent: true,
+                opacity: 0.6
+            });
+            const house = new THREE.Mesh(houseGeo, houseMat);
+            house.position.set(pos.x, 10, pos.z);
+            this.scene.add(house);
+            this.backgroundObjects.push(house);
+
+            const roofGeo = new THREE.ConeGeometry(12, 8, 4);
+            const roofMat = new THREE.MeshLambertMaterial({
+                color: 0x7a8b94,
+                transparent: true,
+                opacity: 0.6
+            });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.set(pos.x, 25, pos.z);
+            this.scene.add(roof);
+            this.backgroundObjects.push(roof);
+        });
+
+        const snowGeo = new THREE.BufferGeometry();
+        const snowCount = 1500;
+        const snowPos = new Float32Array(snowCount * 3);
+        const snowVel = [];
+        for (let i = 0; i < snowCount; i++) {
+            snowPos[i * 3] = (Math.random() - 0.5) * 400;
+            snowPos[i * 3 + 1] = Math.random() * 200;
+            snowPos[i * 3 + 2] = (Math.random() - 0.5) * 400;
+            snowVel.push({
+                x: (Math.random() - 0.5) * 0.02,
+                y: -0.05 - Math.random() * 0.05,
+                z: (Math.random() - 0.5) * 0.02
+            });
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+        snowGeo.userData.velocities = snowVel;
+        const snowMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.3,
+            transparent: true,
+            opacity: 0.8
+        });
+        const snow = new THREE.Points(snowGeo, snowMat);
+        this.scene.add(snow);
+        this.particleSystems.push(snow);
+    }
+
+    createStormSky() {
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x0a0a15) },
+                bottomColor: { value: new THREE.Color(0x2a2a3a) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 },
+                lightningFlash: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                uniform float lightningFlash;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    vec3 baseColor = mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0));
+                    vec3 flashColor = baseColor + vec3(lightningFlash * 0.5);
+                    gl_FragColor = vec4(flashColor, 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        sky.userData.material = skyMat;
+        this.scene.add(sky);
+        this.backgroundObjects.push(sky);
+
+        this.scene.fog = new THREE.FogExp2(0x1a1a2a, 0.005);
+
+        for (let i = 0; i < 20; i++) {
+            const cloudGeo = new THREE.PlaneGeometry(60 + Math.random() * 40, 20 + Math.random() * 15);
+            const cloudMat = new THREE.MeshBasicMaterial({
+                color: 0x3a3a4a,
+                transparent: true,
+                opacity: 0.4 + Math.random() * 0.3,
+                side: THREE.DoubleSide
+            });
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            const angle = (i / 20) * Math.PI * 2;
+            cloud.position.set(
+                Math.cos(angle) * (180 + Math.random() * 120),
+                80 + Math.random() * 60,
+                Math.sin(angle) * (180 + Math.random() * 120)
+            );
+            cloud.lookAt(this.camera.position);
+            cloud.userData.driftSpeed = 0.05 + Math.random() * 0.1;
+            cloud.userData.turbulence = Math.random() * Math.PI * 2;
+            this.scene.add(cloud);
+            this.backgroundObjects.push(cloud);
+        }
+
+        const rainGeo = new THREE.BufferGeometry();
+        const rainCount = 1000;
+        const rainPos = new Float32Array(rainCount * 3);
+        const rainVel = [];
+        for (let i = 0; i < rainCount; i++) {
+            rainPos[i * 3] = (Math.random() - 0.5) * 400;
+            rainPos[i * 3 + 1] = Math.random() * 200;
+            rainPos[i * 3 + 2] = (Math.random() - 0.5) * 400;
+            rainVel.push({
+                x: -0.1,
+                y: -0.5 - Math.random() * 0.3,
+                z: 0
+            });
+        }
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+        rainGeo.userData.velocities = rainVel;
+        const rainMat = new THREE.PointsMaterial({
+            color: 0x6688aa,
+            size: 0.2,
+            transparent: true,
+            opacity: 0.6
+        });
+        const rain = new THREE.Points(rainGeo, rainMat);
+        this.scene.add(rain);
+        this.particleSystems.push(rain);
+    }
+
+    createVolcanicSky() {
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x4a0000) },
+                bottomColor: { value: new THREE.Color(0xff4400) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(sky);
+        this.backgroundObjects.push(sky);
+
+        this.scene.fog = new THREE.FogExp2(0x662200, 0.003);
+
+        const emberGeo = new THREE.BufferGeometry();
+        const emberCount = 800;
+        const emberPos = new Float32Array(emberCount * 3);
+        const emberVel = [];
+        for (let i = 0; i < emberCount; i++) {
+            emberPos[i * 3] = (Math.random() - 0.5) * 300;
+            emberPos[i * 3 + 1] = Math.random() * 150;
+            emberPos[i * 3 + 2] = (Math.random() - 0.5) * 300;
+            emberVel.push({
+                x: (Math.random() - 0.5) * 0.05,
+                y: 0.03 + Math.random() * 0.05,
+                z: (Math.random() - 0.5) * 0.05
+            });
+        }
+        emberGeo.setAttribute('position', new THREE.BufferAttribute(emberPos, 3));
+        emberGeo.userData.velocities = emberVel;
+        const emberMat = new THREE.PointsMaterial({
+            color: 0xff6600,
+            size: 0.4,
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending
+        });
+        const embers = new THREE.Points(emberGeo, emberMat);
+        this.scene.add(embers);
+        this.particleSystems.push(embers);
+    }
+
+    createSpringBloomSky() {
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x87ceeb) },
+                bottomColor: { value: new THREE.Color(0xffd4e5) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(sky);
+        this.backgroundObjects.push(sky);
+
+        this.scene.fog = new THREE.FogExp2(0xffeef5, 0.0015);
+
+        for (let i = 0; i < 10; i++) {
+            const cloudGeo = new THREE.PlaneGeometry(50 + Math.random() * 30, 18 + Math.random() * 12);
+            const cloudMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide
+            });
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            const angle = (i / 10) * Math.PI * 2;
+            cloud.position.set(
+                Math.cos(angle) * (220 + Math.random() * 80),
+                70 + Math.random() * 30,
+                Math.sin(angle) * (220 + Math.random() * 80)
+            );
+            cloud.lookAt(this.camera.position);
+            cloud.userData.driftSpeed = 0.015 + Math.random() * 0.015;
+            this.scene.add(cloud);
+            this.backgroundObjects.push(cloud);
+        }
+
+        const petalGeo = new THREE.BufferGeometry();
+        const petalCount = 1200;
+        const petalPos = new Float32Array(petalCount * 3);
+        const petalVel = [];
+        for (let i = 0; i < petalCount; i++) {
+            petalPos[i * 3] = (Math.random() - 0.5) * 350;
+            petalPos[i * 3 + 1] = Math.random() * 180 + 20;
+            petalPos[i * 3 + 2] = (Math.random() - 0.5) * 350;
+            petalVel.push({
+                x: (Math.random() - 0.5) * 0.03,
+                y: -0.02 - Math.random() * 0.02,
+                z: (Math.random() - 0.5) * 0.03,
+                spin: Math.random() * Math.PI * 2
+            });
+        }
+        petalGeo.setAttribute('position', new THREE.BufferAttribute(petalPos, 3));
+        petalGeo.userData.velocities = petalVel;
+        const petalMat = new THREE.PointsMaterial({
+            color: 0xffc0cb,
+            size: 0.25,
+            transparent: true,
+            opacity: 0.8
+        });
+        const petals = new THREE.Points(petalGeo, petalMat);
+        this.scene.add(petals);
+        this.particleSystems.push(petals);
+    }
+
+    update(delta) {
+        this.animationData.time += delta;
+
+        this.backgroundObjects.forEach(obj => {
+            if (obj.userData.driftSpeed !== undefined) {
+                obj.position.x += obj.userData.driftSpeed;
+
+                if (obj.position.x > 300) obj.position.x = -300;
+                if (obj.position.x < -300) obj.position.x = 300;
+
+                if (obj.userData.floatPhase !== undefined) {
+                    obj.position.y += Math.sin(this.animationData.time + obj.userData.floatPhase) * 0.02;
+                }
+
+                if (obj.userData.turbulence !== undefined) {
+                    obj.position.y += Math.sin(this.animationData.time * 2 + obj.userData.turbulence) * 0.05;
+                }
+            }
+        });
+
+        this.particleSystems.forEach(system => {
+            if (system.geometry.userData.velocities) {
+                const positions = system.geometry.attributes.position.array;
+                const velocities = system.geometry.userData.velocities;
+
+                for (let i = 0; i < velocities.length; i++) {
+                    const idx = i * 3;
+                    positions[idx] += velocities[i].x;
+                    positions[idx + 1] += velocities[i].y;
+                    positions[idx + 2] += velocities[i].z;
+
+                    if (positions[idx + 1] < -10) {
+                        positions[idx + 1] = 200;
+                    }
+                    if (positions[idx + 1] > 200) {
+                        positions[idx + 1] = 0;
+                    }
+
+                    if (positions[idx] > 200) positions[idx] = -200;
+                    if (positions[idx] < -200) positions[idx] = 200;
+                    if (positions[idx + 2] > 200) positions[idx + 2] = -200;
+                    if (positions[idx + 2] < -200) positions[idx + 2] = 200;
+                }
+
+                system.geometry.attributes.position.needsUpdate = true;
+            }
+        });
+
+        this.backgroundObjects.forEach(obj => {
+            if (obj.userData.material && obj.userData.material.uniforms.lightningFlash) {
+                this.animationData.lightningTimer += delta;
+
+                if (this.animationData.lightningTimer > 3 + Math.random() * 4) {
+                    this.animationData.lightningTimer = 0;
+                    obj.userData.material.uniforms.lightningFlash.value = 1.0;
+                }
+
+                if (obj.userData.material.uniforms.lightningFlash.value > 0) {
+                    obj.userData.material.uniforms.lightningFlash.value -= delta * 3;
+                }
+            }
+        });
+    }
+}
+
 // Lore and world-building data
 const LORE_DATA = {
     fire_origin: {
@@ -1223,7 +1757,13 @@ function clearScene() {
 function createSceneA() {
     clearScene();
     gameState.currentScene = SCENES.A;
-    scene.background = new THREE.Color(0x87ceeb);
+
+    // Set rich background for Scene A
+    if (backgroundManager) {
+        backgroundManager.setBackground('scene_a');
+    } else {
+        scene.background = new THREE.Color(0x87ceeb);
+    }
 
     // Create ground
     const groundGeometry = new THREE.PlaneGeometry(50, 50);
@@ -1604,7 +2144,13 @@ function updatePortalAnimations() {
 function createSceneB() {
     clearScene();
     gameState.currentScene = SCENES.B;
-    scene.background = new THREE.Color(0x5c6bc0);
+
+    // Set rich background for Scene B
+    if (backgroundManager) {
+        backgroundManager.setBackground('scene_b');
+    } else {
+        scene.background = new THREE.Color(0x5c6bc0);
+    }
 
     // Create ground
     const groundGeometry = new THREE.PlaneGeometry(60, 60);
@@ -1708,7 +2254,13 @@ function createSceneB() {
 function createDarkScene() {
     clearScene();
     gameState.currentScene = SCENES.DARK;
-    scene.background = new THREE.Color(0x212121);
+
+    // Set rich background for Dark Scene
+    if (backgroundManager) {
+        backgroundManager.setBackground('scene_dark');
+    } else {
+        scene.background = new THREE.Color(0x212121);
+    }
 
     const groundGeometry = new THREE.PlaneGeometry(40, 40);
     const groundMaterial = new THREE.MeshStandardMaterial({
@@ -1747,7 +2299,13 @@ function createDarkScene() {
 function createRedScene() {
     clearScene();
     gameState.currentScene = SCENES.RED;
-    scene.background = new THREE.Color(0xb71c1c);
+
+    // Set rich background for Red Scene
+    if (backgroundManager) {
+        backgroundManager.setBackground('scene_red');
+    } else {
+        scene.background = new THREE.Color(0xb71c1c);
+    }
 
     const groundGeometry = new THREE.PlaneGeometry(40, 40);
     const groundMaterial = new THREE.MeshStandardMaterial({
@@ -1807,7 +2365,13 @@ function createRedScene() {
 function createBlueScene() {
     clearScene();
     gameState.currentScene = SCENES.BLUE;
-    scene.background = new THREE.Color(0x0d47a1);
+
+    // Set rich background for Blue Scene
+    if (backgroundManager) {
+        backgroundManager.setBackground('scene_blue');
+    } else {
+        scene.background = new THREE.Color(0x0d47a1);
+    }
 
     const groundGeometry = new THREE.PlaneGeometry(40, 40);
     const groundMaterial = new THREE.MeshStandardMaterial({
@@ -2528,6 +3092,12 @@ function animate() {
     // Update portal animations
     updatePortalAnimations();
 
+    // Update background manager (sky, clouds, particles)
+    if (backgroundManager) {
+        const delta = bgClock.getDelta();
+        backgroundManager.update(delta);
+    }
+
     renderer.render(scene, camera);
 }
 
@@ -2539,6 +3109,9 @@ function init() {
     setTimeout(() => {
         loadingScreen.classList.add('hidden');
     }, 1000);
+
+    // Initialize background manager
+    backgroundManager = new BackgroundManager(scene, camera);
 
     // Initialize resource UI
     updateResourceUI();
