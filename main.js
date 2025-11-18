@@ -31,6 +31,16 @@ const CAMERA_HEIGHT = 10;     // Increased from 6 for more sky view
 const GRAVITY = -0.02;
 const BOUNCE_FACTOR = 0.7;
 
+// Ball-specific speed modifiers
+const BALL_SPEED_MODIFIERS = {
+    [BALL_TYPES.INITIAL]: 1.0,   // Normal speed
+    [BALL_TYPES.GLASS]: 1.0,     // Normal speed
+    [BALL_TYPES.FIRE]: 0.6,      // 40% slower (was too fast)
+    [BALL_TYPES.BOUNCY]: 0.6     // 40% slower (was too fast)
+};
+
+const SHIFT_SPEED_MULTIPLIER = 1.8; // Speed boost when holding shift
+
 // ============================================================================
 // GAME STATE
 // ============================================================================
@@ -2841,7 +2851,21 @@ function handleMovement() {
 
     if (moveDir.length() > 0) {
         moveDir.normalize();
-        moveDir.multiplyScalar(MOVE_SPEED);
+
+        // Calculate final speed based on ball type and shift key
+        let finalSpeed = MOVE_SPEED;
+
+        // Apply ball-specific speed modifier
+        const ballSpeedModifier = BALL_SPEED_MODIFIERS[gameState.currentBallType] || 1.0;
+        finalSpeed *= ballSpeedModifier;
+
+        // Apply shift speed boost
+        const isShiftPressed = keys['shift'] || keys['ShiftLeft'] || keys['ShiftRight'];
+        if (isShiftPressed) {
+            finalSpeed *= SHIFT_SPEED_MULTIPLIER;
+        }
+
+        moveDir.multiplyScalar(finalSpeed);
 
         gameState.velocity.x += moveDir.x;
         gameState.velocity.z += moveDir.z;
