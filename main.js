@@ -54,7 +54,8 @@ let choiceState = {
     exploredLore: [],
     atmosphericIntensity: 0, // 0-100 scale
     windStrength: 0,
-    stormApproaching: false
+    stormApproaching: false,
+    justDied: false // Track if player just returned from a death
 };
 
 // Resource management system
@@ -1758,18 +1759,23 @@ function createSceneA() {
     clearScene();
     gameState.currentScene = SCENES.A;
 
-    // Set rich background for Scene A
+    // Check if returning after death - apply corrupted visuals
+    const isCorrupted = choiceState.justDied;
+
+    // Set rich background for Scene A (darkened if corrupted)
     if (backgroundManager) {
         backgroundManager.setBackground('scene_a');
     } else {
-        scene.background = new THREE.Color(0x87ceeb);
+        scene.background = new THREE.Color(isCorrupted ? 0x3a3a3a : 0x87ceeb);
     }
 
-    // Create ground
+    // Create ground (darkened and desaturated if corrupted)
     const groundGeometry = new THREE.CircleGeometry(25, 64); // Circular floor with radius 25
     const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8fbc8f,
-        roughness: 0.8
+        color: isCorrupted ? 0x4a4a3a : 0x8fbc8f, // Darker, grayish-green when corrupted
+        roughness: 0.8,
+        emissive: isCorrupted ? 0x1a1a1a : 0x000000, // Slight dark glow when corrupted
+        emissiveIntensity: isCorrupted ? 0.2 : 0
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
@@ -1868,13 +1874,34 @@ function createSceneA() {
     // Create background environment (mountains, buildings, clouds)
     createBackgroundEnvironment();
 
-    // Set weather lighting for daytime
-    setWeatherLighting('day');
+    // Apply death effects if returning from death
+    if (isCorrupted) {
+        // Set storm/corrupted lighting instead of day
+        setWeatherLighting('storm');
 
-    // Atmospheric intro
-    setTimeout(() => {
-        showAtmosphericText('The journey begins... Choose your path wisely.', 4000);
-    }, 1500);
+        // Add thick fog for corrupted atmosphere
+        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
+
+        // Trigger persistent camera shake
+        visualState.cameraShakeIntensity = 0.8;
+        triggerCameraShake(1.2);
+
+        // Show corrupted message
+        setTimeout(() => {
+            showAtmosphericText('The void\'s corruption lingers...', 4000);
+        }, 1500);
+
+        // Reset the flag after applying effects
+        choiceState.justDied = false;
+    } else {
+        // Set weather lighting for daytime
+        setWeatherLighting('day');
+
+        // Atmospheric intro
+        setTimeout(() => {
+            showAtmosphericText('The journey begins... Choose your path wisely.', 4000);
+        }, 1500);
+    }
 
     updateUI();
 }
@@ -2441,6 +2468,7 @@ function handleDarkSceneEffect() {
         // Glass Ball shatters
         gameState.inputEnabled = false;
         choiceState.totalDeaths++;
+        choiceState.justDied = true; // Mark death for persistent effects
         modifyResources(-20, -50, -10); // Massive stability loss
         setTimeout(() => {
             createShatterEffect(playerBall.position.clone());
@@ -2454,6 +2482,7 @@ function handleDarkSceneEffect() {
         // Fire Ball extinguishes
         gameState.inputEnabled = false;
         choiceState.totalDeaths++;
+        choiceState.justDied = true; // Mark death for persistent effects
         modifyResources(-30, -10, -15); // Energy drained
         setTimeout(() => {
             createExtinguishEffect(playerBall.position.clone());
@@ -2507,6 +2536,7 @@ function handleRedSceneEffect() {
         // Glass or Bouncy falls through
         gameState.inputEnabled = false;
         choiceState.totalDeaths++;
+        choiceState.justDied = true; // Mark death for persistent effects
         modifyResources(-15, -25, -20); // Lost in the void
         setTimeout(() => {
             createRippleEffect(playerBall.position.clone());
@@ -2530,6 +2560,7 @@ function handleBlueSceneEffect() {
         // Fire or Bouncy disappears instantly
         gameState.inputEnabled = false;
         choiceState.totalDeaths++;
+        choiceState.justDied = true; // Mark death for persistent effects
         modifyResources(-25, -15, -30); // Harmony disrupted
         setTimeout(() => {
             createDisappearEffect(playerBall.position.clone());
