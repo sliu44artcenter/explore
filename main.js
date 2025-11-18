@@ -84,6 +84,10 @@ let visualState = {
 // Background environment objects
 let backgroundObjects = [];
 
+// Clock for portal animations
+const portalClock = new THREE.Clock();
+let portalMeshes = []; // Track portal surfaces for animation
+
 // Lore and world-building data
 const LORE_DATA = {
     fire_origin: {
@@ -1231,6 +1235,9 @@ function clearScene() {
         weatherParticles = null;
     }
 
+    // Clear portal meshes
+    portalMeshes = [];
+
     // Remove player ball
     if (playerBall) {
         scene.remove(playerBall);
@@ -1357,6 +1364,276 @@ function createSceneA() {
     updateUI();
 }
 
+// ============================================================================
+// PORTAL VISUAL SYSTEM
+// ============================================================================
+
+// Portal Shader - Vertex Shader
+const portalVertexShader = `
+    varying vec2 vUv;
+    varying vec3 vPosition;
+
+    void main() {
+        vUv = uv;
+        vPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+// Portal Shader - Fragment Shader
+const portalFragmentShader = `
+    uniform float time;
+    uniform vec3 color1;
+    uniform vec3 color2;
+    uniform float portalType; // 0=gray, 1=red, 2=blue
+
+    varying vec2 vUv;
+    varying vec3 vPosition;
+
+    // Simple noise function
+    float noise(vec2 p) {
+        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    // Smooth noise
+    float smoothNoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+
+        float a = noise(i);
+        float b = noise(i + vec2(1.0, 0.0));
+        float c = noise(i + vec2(0.0, 1.0));
+        float d = noise(i + vec2(1.0, 1.0));
+
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+
+    void main() {
+        vec2 uv = vUv - 0.5;
+        float dist = length(uv);
+
+        // Radial gradient
+        float radial = 1.0 - smoothstep(0.0, 0.5, dist);
+
+        // Rotation based on portal type
+        float angle = 0.0;
+        if (portalType == 1.0) {
+            // Red portal - fast swirl
+            angle = atan(uv.y, uv.x) + time * 0.5;
+        } else if (portalType == 2.0) {
+            // Blue portal - slow ripple
+            angle = atan(uv.y, uv.x) + time * 0.2;
+        } else {
+            // Gray portal - slow turbulence
+            angle = atan(uv.y, uv.x) + time * 0.15;
+        }
+
+        vec2 rotatedUV = vec2(cos(angle), sin(angle)) * dist;
+
+        // Distortion
+        float distortion = 0.0;
+        if (portalType == 1.0) {
+            // Fire distortion - sharp turbulence
+            distortion = smoothNoise(rotatedUV * 8.0 + time * 2.0) * 0.3;
+        } else if (portalType == 2.0) {
+            // Water ripple
+            float ripple = sin(dist * 20.0 - time * 3.0) * 0.5 + 0.5;
+            distortion = ripple * smoothNoise(rotatedUV * 5.0 + time * 0.5) * 0.2;
+        } else {
+            // Smoke turbulence
+            distortion = smoothNoise(rotatedUV * 6.0 + time * 0.8) * 0.25;
+        }
+
+        float pattern = distortion + radial * 0.7;
+
+        // Color mixing
+        vec3 finalColor = mix(color1, color2, pattern);
+
+        // Add glow
+        float glow = radial * (0.8 + distortion * 0.5);
+        finalColor += vec3(glow * 0.3);
+
+        // Fade edges
+        float alpha = radial * 0.9;
+
+        gl_FragColor = vec4(finalColor, alpha);
+    }
+`;
+
+/**
+ * Creates a magical 3D portal with rim, shader surface, particles, and lighting
+ * @param {string} type - 'gray', 'red', or 'blue'
+ * @param {THREE.Vector3} position - Portal position
+ * @param {THREE.Scene} targetScene - Target scene constant
+ * @returns {THREE.Group} Portal group
+ */
+function makePortal(type, position, targetScene) {
+    const portalGroup = new THREE.Group();
+    portalGroup.position.copy(position);
+
+    // Portal configuration based on type
+    let rimColor1, rimColor2, surfaceColor1, surfaceColor2, lightColor, particleColor, portalTypeNum;
+
+    if (type === 'red') {
+        rimColor1 = new THREE.Color(0x8b0000); // Deep red
+        rimColor2 = new THREE.Color(0xff4500); // Bright orange
+        surfaceColor1 = new THREE.Color(0xff0000);
+        surfaceColor2 = new THREE.Color(0xff8800);
+        lightColor = 0xff4500;
+        particleColor = 0xff6600;
+        portalTypeNum = 1.0;
+    } else if (type === 'blue') {
+        rimColor1 = new THREE.Color(0x006494); // Deep blue
+        rimColor2 = new THREE.Color(0x00bfff); // Cyan
+        surfaceColor1 = new THREE.Color(0x0066cc);
+        surfaceColor2 = new THREE.Color(0x00ffff);
+        lightColor = 0x00bfff;
+        particleColor = 0x66ccff;
+        portalTypeNum = 2.0;
+    } else {
+        // Gray/dark portal
+        rimColor1 = new THREE.Color(0x2a2a2a); // Dark gray
+        rimColor2 = new THREE.Color(0x707070); // Light gray
+        surfaceColor1 = new THREE.Color(0x333333);
+        surfaceColor2 = new THREE.Color(0x666666);
+        lightColor = 0x888888;
+        particleColor = 0x555555;
+        portalTypeNum = 0.0;
+    }
+
+    // 1. PORTAL RIM (3D Torus)
+    const rimGeometry = new THREE.TorusGeometry(2.8, 0.25, 16, 64);
+    const rimMaterial = new THREE.MeshStandardMaterial({
+        color: rimColor1,
+        emissive: rimColor2,
+        emissiveIntensity: 0.6,
+        metalness: 0.7,
+        roughness: 0.3
+    });
+    const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 0.5;
+    portalGroup.add(rim);
+
+    // 2. PORTAL SURFACE (Shader Plane)
+    const surfaceGeometry = new THREE.CircleGeometry(2.6, 64);
+    const surfaceMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            time: { value: 0 },
+            color1: { value: surfaceColor1 },
+            color2: { value: surfaceColor2 },
+            portalType: { value: portalTypeNum }
+        },
+        vertexShader: portalVertexShader,
+        fragmentShader: portalFragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+    });
+    const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+    surface.rotation.x = -Math.PI / 2;
+    surface.position.y = 0.2;
+    portalGroup.add(surface);
+
+    // Track for animation updates
+    portalMeshes.push(surface);
+
+    // 3. PORTAL GLOW LIGHT
+    const portalLight = new THREE.PointLight(lightColor, 2, 15);
+    portalLight.position.y = 1;
+    portalGroup.add(portalLight);
+
+    // 4. PARTICLE SYSTEM
+    const particleCount = 50;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+
+    for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2;
+        const radius = 2.8 + Math.random() * 0.5;
+        positions[i * 3] = Math.cos(angle) * radius;
+        positions[i * 3 + 1] = Math.random() * 2;
+        positions[i * 3 + 2] = Math.sin(angle) * radius;
+
+        // Store velocity for animation
+        velocities.push({
+            y: type === 'red' ? 0.02 : (type === 'blue' ? -0.01 : 0.005),
+            reset: positions[i * 3 + 1]
+        });
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.userData.velocities = velocities;
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size: type === 'red' ? 0.15 : 0.1,
+        color: particleColor,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    particles.userData.portalType = type;
+    portalGroup.add(particles);
+
+    // 5. TRIGGER ZONE (invisible collision detector)
+    const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 64);
+    const triggerMaterial = new THREE.MeshBasicMaterial({ visible: false });
+    const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
+    trigger.userData.isTrigger = true;
+    trigger.userData.targetScene = targetScene;
+    trigger.userData.isHole = true;
+    portalGroup.add(trigger);
+
+    return portalGroup;
+}
+
+/**
+ * Updates all portal animations
+ */
+function updatePortalAnimations() {
+    const time = portalClock.getElapsedTime();
+
+    // Update shader time uniforms
+    portalMeshes.forEach(mesh => {
+        if (mesh.material.uniforms) {
+            mesh.material.uniforms.time.value = time;
+        }
+    });
+
+    // Update portal particles
+    scene.children.forEach(obj => {
+        if (obj.children) {
+            obj.children.forEach(child => {
+                if (child instanceof THREE.Points && child.geometry.userData.velocities) {
+                    const positions = child.geometry.attributes.position.array;
+                    const velocities = child.geometry.userData.velocities;
+                    const type = child.userData.portalType;
+
+                    for (let i = 0; i < velocities.length; i++) {
+                        const idx = i * 3;
+                        positions[idx + 1] += velocities[i].y;
+
+                        // Reset particles
+                        if (type === 'red' && positions[idx + 1] > 3) {
+                            positions[idx + 1] = 0;
+                        } else if (type === 'blue' && positions[idx + 1] < 0) {
+                            positions[idx + 1] = 2;
+                        } else if (type === 'gray' && (positions[idx + 1] > 2.5 || positions[idx + 1] < -0.5)) {
+                            positions[idx + 1] = velocities[i].reset;
+                        }
+                    }
+
+                    child.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+        }
+    });
+}
+
 function createSceneB() {
     clearScene();
     gameState.currentScene = SCENES.B;
@@ -1379,64 +1656,32 @@ function createSceneB() {
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS, 15));
     scene.add(playerBall);
 
-    // Create three holes (in front of player - negative z direction)
-    const holeColors = [0x424242, 0xc62828, 0x1565c0];
-    const holePositions = [
+    // Create three magical portals (in front of player - negative z direction)
+    const portalTypes = ['gray', 'red', 'blue'];
+    const portalNames = ['Dark Realm', 'Crimson Void', 'Azure Abyss'];
+    const portalPositions = [
         new THREE.Vector3(-10, 0, -10),
         new THREE.Vector3(0, 0, -10),
         new THREE.Vector3(10, 0, -10)
     ];
-    const holeScenes = [SCENES.DARK, SCENES.RED, SCENES.BLUE];
+    const portalScenes = [SCENES.DARK, SCENES.RED, SCENES.BLUE];
 
     for (let i = 0; i < 3; i++) {
-        // Hole visual - smooth circular shape with high segments
-        const holeGeometry = new THREE.CylinderGeometry(3, 3, 1, 64);
-        const holeMaterial = new THREE.MeshStandardMaterial({
-            color: holeColors[i],
-            emissive: holeColors[i],
-            emissiveIntensity: 0.3
-        });
-        const hole = new THREE.Mesh(holeGeometry, holeMaterial);
-        hole.position.copy(holePositions[i]);
-        hole.position.y = -0.5;
-        scene.add(hole);
-        sceneObjects.push(hole);
+        // Create upgraded 3D portal with shader, particles, and lighting
+        const portal = makePortal(portalTypes[i], portalPositions[i], portalScenes[i]);
+        scene.add(portal);
+        sceneObjects.push(portal);
 
-        // Inner ring for visual depth
-        const innerRingGeometry = new THREE.TorusGeometry(2.5, 0.3, 16, 64);
-        const innerRingMaterial = new THREE.MeshStandardMaterial({
-            color: 0x000000,
-            emissive: holeColors[i],
-            emissiveIntensity: 0.1
-        });
-        const innerRing = new THREE.Mesh(innerRingGeometry, innerRingMaterial);
-        innerRing.position.copy(holePositions[i]);
-        innerRing.position.y = 0.1;
-        innerRing.rotation.x = -Math.PI / 2;
-        scene.add(innerRing);
-        sceneObjects.push(innerRing);
-
-        // Trigger zone - smooth circular cylinder with high segments
-        const triggerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 2, 64);
-        const triggerMaterial = new THREE.MeshBasicMaterial({ visible: false });
-        const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-        trigger.position.copy(holePositions[i]);
-        trigger.userData.isTrigger = true;
-        trigger.userData.targetScene = holeScenes[i];
-        trigger.userData.isHole = true;
-        scene.add(trigger);
-        sceneObjects.push(trigger);
-
-        // Label
-        const labelGeometry = new THREE.PlaneGeometry(4, 1);
+        // Portal label
+        const labelGeometry = new THREE.PlaneGeometry(5, 1);
         const canvas = document.createElement('canvas');
-        canvas.width = 256;
+        canvas.width = 320;
         canvas.height = 64;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 40px Arial';
+        ctx.font = 'bold 36px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`Hole ${i + 1}`, 128, 45);
+        ctx.fillText(portalNames[i], 160, 45);
         const labelTexture = new THREE.CanvasTexture(canvas);
         const labelMaterial = new THREE.MeshBasicMaterial({
             map: labelTexture,
@@ -1444,8 +1689,8 @@ function createSceneB() {
             side: THREE.DoubleSide
         });
         const label = new THREE.Mesh(labelGeometry, labelMaterial);
-        label.position.copy(holePositions[i]);
-        label.position.y = 3;
+        label.position.copy(portalPositions[i]);
+        label.position.y = 4;
         label.rotation.x = -Math.PI / 4;
         scene.add(label);
         sceneObjects.push(label);
@@ -2301,6 +2546,9 @@ function animate() {
     updateBallIdleAnimation();
     applyCameraShake();
     updateWeatherBasedEffects();
+
+    // Update portal animations
+    updatePortalAnimations();
 
     renderer.render(scene, camera);
 }
