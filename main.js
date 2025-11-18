@@ -1851,15 +1851,15 @@ function createSceneA() {
     scene.add(trigger);
     sceneObjects.push(trigger);
 
-    // Add lore hotspots near selectable balls
+    // Add lore hotspots near selectable balls (positioned farther for better visibility)
     if (!LORE_DATA.fire_origin.discovered) {
-        createLoreHotspot(new THREE.Vector3(-7, 1.5, 2), 'fire_origin', 0xff5722);
+        createLoreHotspot(new THREE.Vector3(-10, 1.5, 6), 'fire_origin', 0xff5722);
     }
     if (!LORE_DATA.glass_mystery.discovered) {
-        createLoreHotspot(new THREE.Vector3(7, 1.5, 2), 'glass_mystery', 0xe0e0e0);
+        createLoreHotspot(new THREE.Vector3(10, 1.5, 6), 'glass_mystery', 0xe0e0e0);
     }
     if (!LORE_DATA.bouncy_legend.discovered) {
-        createLoreHotspot(new THREE.Vector3(2, 1.5, -7), 'bouncy_legend', 0x4caf50);
+        createLoreHotspot(new THREE.Vector3(6, 1.5, -11), 'bouncy_legend', 0x4caf50);
     }
 
     // Add atmospheric dust particles
@@ -2220,15 +2220,15 @@ function createSceneB() {
         sceneObjects.push(label);
     }
 
-    // Add lore hotspots for realm information
+    // Add lore hotspots for realm information (positioned farther for better visibility)
     if (!LORE_DATA.dark_realm.discovered) {
-        createLoreHotspot(new THREE.Vector3(-12, 1.5, -8), 'dark_realm', 0x757575);
+        createLoreHotspot(new THREE.Vector3(-17, 1.5, -6), 'dark_realm', 0x757575);
     }
     if (!LORE_DATA.red_void.discovered) {
-        createLoreHotspot(new THREE.Vector3(0, 1.5, -12), 'red_void', 0xef5350);
+        createLoreHotspot(new THREE.Vector3(0, 1.5, -17), 'red_void', 0xef5350);
     }
     if (!LORE_DATA.blue_abyss.discovered) {
-        createLoreHotspot(new THREE.Vector3(12, 1.5, -8), 'blue_abyss', 0x42a5f5);
+        createLoreHotspot(new THREE.Vector3(17, 1.5, -6), 'blue_abyss', 0x42a5f5);
     }
 
     // Track choice
