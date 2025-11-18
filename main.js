@@ -1766,7 +1766,7 @@ function createSceneA() {
     }
 
     // Create ground
-    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    const groundGeometry = new THREE.CircleGeometry(25, 64); // Circular floor with radius 25
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x8fbc8f,
         roughness: 0.8
@@ -2153,7 +2153,7 @@ function createSceneB() {
     }
 
     // Create ground
-    const groundGeometry = new THREE.PlaneGeometry(60, 60);
+    const groundGeometry = new THREE.CircleGeometry(30, 64); // Circular floor with radius 30
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x7986cb,
         roughness: 0.7
@@ -2262,7 +2262,7 @@ function createDarkScene() {
         scene.background = new THREE.Color(0x212121);
     }
 
-    const groundGeometry = new THREE.PlaneGeometry(40, 40);
+    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x424242,
         roughness: 0.9
@@ -2307,7 +2307,7 @@ function createRedScene() {
         scene.background = new THREE.Color(0xb71c1c);
     }
 
-    const groundGeometry = new THREE.PlaneGeometry(40, 40);
+    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0xff0000,           // Pure red color
         emissive: 0xff0000,        // Red glow
@@ -2376,7 +2376,7 @@ function createBlueScene() {
         scene.background = new THREE.Color(0x0d47a1);
     }
 
-    const groundGeometry = new THREE.PlaneGeometry(40, 40);
+    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x1565c0,
         roughness: 0.4
