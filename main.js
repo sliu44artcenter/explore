@@ -2921,14 +2921,19 @@ function handleMovement() {
     playerBall.position.z += gameState.velocity.z;
     playerBall.position.y += gameState.velocity.y;
 
-    // Ground collision - only if within floor radius
+    // Check if ball is within the circular floor boundary
     const distanceFromCenter = Math.sqrt(
         playerBall.position.x * playerBall.position.x +
         playerBall.position.z * playerBall.position.z
     );
 
-    if (playerBall.position.y < BALL_RADIUS && distanceFromCenter <= gameState.floorRadius) {
-        // Ball is above the floor platform
+    // Ball is outside the floor - let it fall, no ground collision
+    if (distanceFromCenter > gameState.floorRadius) {
+        gameState.onGround = false;
+        // Ball falls naturally with gravity
+    }
+    // Ball is inside the floor - apply normal ground collision
+    else if (playerBall.position.y <= BALL_RADIUS) {
         playerBall.position.y = BALL_RADIUS;
         if (gameState.velocity.y < 0) {
             if (gameState.currentBallType === BALL_TYPES.BOUNCY) {
@@ -2938,10 +2943,9 @@ function handleMovement() {
             }
         }
         gameState.onGround = true;
-    } else if (distanceFromCenter > gameState.floorRadius && playerBall.position.y < BALL_RADIUS) {
-        // Ball is beyond floor edge - let it fall
-        gameState.onGround = false;
-    } else {
+    }
+    // Ball is in the air above the floor
+    else {
         gameState.onGround = false;
     }
 
