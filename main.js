@@ -2614,11 +2614,11 @@ function handleFallOffDeath() {
     // Create falling effect message
     showMessage('You fell off the platform!');
 
-    // Wait a moment, then restart
+    // Wait a moment, then show restart button
     setTimeout(() => {
         scene.remove(playerBall);
         playerBall = null;
-        setTimeout(() => transitionToScene(SCENES.A, true), 1000);
+        setTimeout(() => showRestartButton(), 500);
     }, 1000);
 }
 
@@ -3175,6 +3175,9 @@ function hideRestartButton() {
 
 function completeGameReset() {
     console.log('Complete game reset initiated');
+
+    // Hide the restart button
+    hideRestartButton();
 
     // Reset all game state
     gameState.currentBallType = BALL_TYPES.INITIAL;
