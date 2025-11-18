@@ -26,8 +26,8 @@ const SCENES = {
 const BALL_RADIUS = 1;
 const MOVE_SPEED = 0.02;
 const ROTATION_SPEED = 0.05;
-const CAMERA_DISTANCE = 10;
-const CAMERA_HEIGHT = 6;
+const CAMERA_DISTANCE = 15;  // Increased from 10 for better background visibility
+const CAMERA_HEIGHT = 10;     // Increased from 6 for more sky view
 const GRAVITY = -0.02;
 const BOUNCE_FACTOR = 0.7;
 
@@ -2957,7 +2957,14 @@ function updateCamera() {
     );
 
     camera.position.lerp(targetPosition, 0.05);
-    camera.lookAt(playerBall.position);
+
+    // Look at point slightly above ball to tilt camera up and show more sky/background
+    const lookAtPoint = new THREE.Vector3(
+        playerBall.position.x,
+        playerBall.position.y + 3,  // Look 3 units above ball
+        playerBall.position.z
+    );
+    camera.lookAt(lookAtPoint);
 }
 
 // ============================================================================
