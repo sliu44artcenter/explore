@@ -2867,50 +2867,54 @@ function updateEffects() {
 // GAME LOGIC
 // ============================================================================
 function handleMovement() {
-    if (!gameState.inputEnabled || !playerBall) return;
+    if (!playerBall) return;
 
-    const moveDir = new THREE.Vector3();
+    // Handle player input only if enabled
+    if (gameState.inputEnabled) {
+        const moveDir = new THREE.Vector3();
 
-    if (keys['w'] || keys['arrowup']) moveDir.z -= 1;
-    if (keys['s'] || keys['arrowdown']) moveDir.z += 1;
-    if (keys['a'] || keys['arrowleft']) moveDir.x -= 1;
-    if (keys['d'] || keys['arrowright']) moveDir.x += 1;
+        if (keys['w'] || keys['arrowup']) moveDir.z -= 1;
+        if (keys['s'] || keys['arrowdown']) moveDir.z += 1;
+        if (keys['a'] || keys['arrowleft']) moveDir.x -= 1;
+        if (keys['d'] || keys['arrowright']) moveDir.x += 1;
 
-    if (moveDir.length() > 0) {
-        moveDir.normalize();
+        if (moveDir.length() > 0) {
+            moveDir.normalize();
 
-        // Calculate final speed based on ball type and shift key
-        let finalSpeed = MOVE_SPEED;
+            // Calculate final speed based on ball type and shift key
+            let finalSpeed = MOVE_SPEED;
 
-        // Apply ball-specific speed modifier
-        const ballSpeedModifier = BALL_SPEED_MODIFIERS[gameState.currentBallType] || 1.0;
-        finalSpeed *= ballSpeedModifier;
+            // Apply ball-specific speed modifier
+            const ballSpeedModifier = BALL_SPEED_MODIFIERS[gameState.currentBallType] || 1.0;
+            finalSpeed *= ballSpeedModifier;
 
-        // Apply shift speed boost
-        const isShiftPressed = keys['shift'] || keys['ShiftLeft'] || keys['ShiftRight'];
-        if (isShiftPressed) {
-            finalSpeed *= SHIFT_SPEED_MULTIPLIER;
+            // Apply shift speed boost
+            const isShiftPressed = keys['shift'] || keys['ShiftLeft'] || keys['ShiftRight'];
+            if (isShiftPressed) {
+                finalSpeed *= SHIFT_SPEED_MULTIPLIER;
+            }
+
+            moveDir.multiplyScalar(finalSpeed);
+
+            gameState.velocity.x += moveDir.x;
+            gameState.velocity.z += moveDir.z;
+
+            // Apply friction
+            gameState.velocity.x *= 0.95;
+            gameState.velocity.z *= 0.95;
+
+            // Rotate ball based on movement
+            const rotationAxis = new THREE.Vector3(-moveDir.z, 0, moveDir.x).normalize();
+            const rotationAngle = moveDir.length() * ROTATION_SPEED;
+            playerBall.rotateOnWorldAxis(rotationAxis, rotationAngle);
+        } else {
+            // Apply stronger friction when not moving
+            gameState.velocity.x *= 0.9;
+            gameState.velocity.z *= 0.9;
         }
-
-        moveDir.multiplyScalar(finalSpeed);
-
-        gameState.velocity.x += moveDir.x;
-        gameState.velocity.z += moveDir.z;
-
-        // Apply friction
-        gameState.velocity.x *= 0.95;
-        gameState.velocity.z *= 0.95;
-
-        // Rotate ball based on movement
-        const rotationAxis = new THREE.Vector3(-moveDir.z, 0, moveDir.x).normalize();
-        const rotationAngle = moveDir.length() * ROTATION_SPEED;
-        playerBall.rotateOnWorldAxis(rotationAxis, rotationAngle);
-    } else {
-        // Apply stronger friction when not moving
-        gameState.velocity.x *= 0.9;
-        gameState.velocity.z *= 0.9;
     }
 
+    // Always apply physics (gravity and position updates), even when input is disabled
     // Apply gravity
     if (!gameState.onGround) {
         gameState.velocity.y += GRAVITY;
@@ -2948,6 +2952,11 @@ function handleMovement() {
     else {
         gameState.onGround = false;
     }
+}
+
+function checkFallOff() {
+    // Always check if ball has fallen off, regardless of input state
+    if (!playerBall || gameState.isTransitioning) return;
 
     // Check if ball has fallen too far (fell off the platform)
     if (playerBall.position.y < -10) {
@@ -3168,6 +3177,7 @@ function animate() {
     requestAnimationFrame(animate);
 
     handleMovement();
+    checkFallOff();
     checkCollisions();
     updateCamera();
     updateEffects();
