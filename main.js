@@ -594,31 +594,6 @@ function createBackgroundEnvironment() {
     backgroundObjects.forEach(obj => scene.remove(obj));
     backgroundObjects = [];
 
-    // Create distant mountains (low-poly for performance)
-    const mountainColors = [0x5d6d7e, 0x566573, 0x4d5656];
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const distance = 80 + Math.random() * 20;
-        const height = 15 + Math.random() * 25;
-
-        const mountainGeometry = new THREE.ConeGeometry(12 + Math.random() * 8, height, 6);
-        const mountainMaterial = new THREE.MeshLambertMaterial({
-            color: mountainColors[Math.floor(Math.random() * mountainColors.length)],
-            flatShading: true
-        });
-        const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
-
-        mountain.position.set(
-            Math.cos(angle) * distance,
-            height / 2 - 5,
-            Math.sin(angle) * distance
-        );
-        mountain.rotation.y = Math.random() * Math.PI;
-
-        scene.add(mountain);
-        backgroundObjects.push(mountain);
-    }
-
     // Create simple buildings/structures for scale
     const buildingPositions = [
         { x: -60, z: -40 },
