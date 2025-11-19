@@ -1596,11 +1596,11 @@ musicBtn.addEventListener('click', toggleMusic);
 // Create volcanic rock material with cracks
 function createVolcanicRockMaterial() {
     const material = new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.95,
-        metalness: 0.1,
-        emissive: 0x1a0a0a,
-        emissiveIntensity: 0.15
+        color: 0x4a4a4a,  // Much lighter gray for visibility
+        roughness: 0.85,
+        metalness: 0.05,
+        emissive: 0x2a1a1a,
+        emissiveIntensity: 0.3  // Increased for visibility
     });
 
     // Add variation using vertex colors simulation
@@ -1611,7 +1611,7 @@ function createVolcanicRockMaterial() {
             #include <color_fragment>
             // Add subtle crack-like variations
             float crack = fract(sin(dot(vUv, vec2(12.9898, 78.233))) * 43758.5453);
-            diffuseColor.rgb *= mix(0.7, 1.0, crack);
+            diffuseColor.rgb *= mix(0.85, 1.0, crack);  // Lighter cracks
             `
         );
     };
@@ -1622,11 +1622,11 @@ function createVolcanicRockMaterial() {
 // Create animated lava material
 function createLavaMaterial() {
     const material = new THREE.MeshStandardMaterial({
-        color: 0xff3300,
-        emissive: 0xff3300,
-        emissiveIntensity: 0.8,
-        roughness: 0.2,
-        metalness: 0.05
+        color: 0xff5500,  // Brighter orange-red
+        emissive: 0xff4400,
+        emissiveIntensity: 1.2,  // Significantly increased for visibility
+        roughness: 0.3,
+        metalness: 0.1
     });
 
     // Add animated noise for flowing lava
@@ -1655,12 +1655,12 @@ function createLavaMaterial() {
             float flow2 = noise(flowUv * 2.0 + vec2(time * 0.07));
             float lavaFlow = (flow1 + flow2) * 0.5;
 
-            // Modulate emissive intensity
-            totalEmissiveRadiance *= (0.6 + lavaFlow * 0.4);
+            // Modulate emissive intensity (keep it very bright)
+            totalEmissiveRadiance *= (0.9 + lavaFlow * 0.3);
 
             // Add bright veins
             if (lavaFlow > 0.85) {
-                totalEmissiveRadiance *= 1.5;
+                totalEmissiveRadiance *= 1.4;
             }
             `
         );
@@ -1672,11 +1672,11 @@ function createLavaMaterial() {
 // Create snow material with sparkles
 function createSnowMaterial() {
     const material = new THREE.MeshStandardMaterial({
-        color: 0xe8f4f8,
-        roughness: 0.6,
-        metalness: 0.02,
-        emissive: 0xaaccee,
-        emissiveIntensity: 0.05
+        color: 0xffffff,  // Pure white for maximum visibility
+        roughness: 0.4,
+        metalness: 0.05,
+        emissive: 0xddeeff,
+        emissiveIntensity: 0.2  // Increased for visibility
     });
 
     // Add sparkle effect
@@ -1699,12 +1699,12 @@ function createSnowMaterial() {
 
             // Create sparkle points
             if (sparkleNoise > 0.98) {
-                totalEmissiveRadiance += vec3(0.3, 0.4, 0.5) * (sparkleNoise - 0.98) * 50.0;
+                totalEmissiveRadiance += vec3(0.5, 0.6, 0.7) * (sparkleNoise - 0.98) * 50.0;
             }
 
-            // Add soft brightness variation
+            // Add soft brightness variation (keep it bright)
             float snowBrightness = fract(sin(dot(vUv * 5.0, vec2(127.1, 311.7))) * 43758.5453);
-            diffuseColor.rgb *= mix(0.95, 1.05, snowBrightness);
+            diffuseColor.rgb *= mix(0.98, 1.05, snowBrightness);
             `
         );
     };
@@ -2563,16 +2563,16 @@ function createDarkScene() {
     // Enhanced: Add dust particles drifting in the air
     createDustParticles(scene);
 
-    // Enhanced: Add thick fog for heavy atmosphere
-    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.08);
+    // Enhanced: Add lighter fog for better visibility
+    scene.fog = new THREE.FogExp2(0x1a1a1a, 0.03);  // Reduced density, lighter color
 
-    // Enhanced: Add pulsating ambient light
-    const ambientPulse = new THREE.AmbientLight(0x331111, 0.15);
+    // Enhanced: Add pulsating ambient light (brighter)
+    const ambientPulse = new THREE.AmbientLight(0x554444, 0.3);  // Brighter and warmer
     ambientPulse.userData.isPulsingLight = true;
     scene.add(ambientPulse);
 
-    // Enhanced: Add dim point light above for subtle illumination
-    const dimLight = new THREE.PointLight(0x443333, 0.3, 30);
+    // Enhanced: Add brighter point light above for better illumination
+    const dimLight = new THREE.PointLight(0x665555, 0.8, 40);  // Much brighter
     dimLight.position.set(0, 10, 0);
     scene.add(dimLight);
 
@@ -2620,28 +2620,28 @@ function createRedScene() {
     scene.add(ground);
     sceneObjects.push(ground);
 
-    // Enhanced: Add orange/red glow reflecting upward
-    const lavaGlow = new THREE.PointLight(0xff6600, 1.5, 40);
-    lavaGlow.position.set(0, 1, 0);
+    // Enhanced: Add orange/red glow reflecting upward (brighter)
+    const lavaGlow = new THREE.PointLight(0xff7722, 2.5, 50);  // Much brighter
+    lavaGlow.position.set(0, 2, 0);  // Higher up
     scene.add(lavaGlow);
 
     // Enhanced: Add multiple smaller lights for heat shimmer effect
     for (let i = 0; i < 5; i++) {
         const angle = (Math.PI * 2 * i) / 5;
-        const heatLight = new THREE.PointLight(0xff3300, 0.5, 15);
+        const heatLight = new THREE.PointLight(0xff5522, 0.8, 20);  // Brighter
         heatLight.position.set(
             Math.cos(angle) * 10,
-            0.5,
+            1,  // Higher up
             Math.sin(angle) * 10
         );
         heatLight.userData.isHeatLight = true;
         heatLight.userData.angle = angle;
-        heatLight.userData.baseIntensity = 0.5;
+        heatLight.userData.baseIntensity = 0.8;
         scene.add(heatLight);
     }
 
-    // Enhanced: Add subtle red fog for heat haze
-    scene.fog = new THREE.FogExp2(0x330000, 0.04);
+    // Enhanced: Add lighter red fog for better visibility
+    scene.fog = new THREE.FogExp2(0x441100, 0.02);  // Lighter fog, reduced density
 
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
     scene.add(playerBall);
@@ -2715,20 +2715,20 @@ function createBlueScene() {
     // Enhanced: Add snow sparkle particles drifting upward
     createSnowSparkles(scene);
 
-    // Enhanced: Add cold fog with pale blue tint
-    scene.fog = new THREE.FogExp2(0x0a2540, 0.05);
+    // Enhanced: Add lighter fog for better visibility
+    scene.fog = new THREE.FogExp2(0x1a3050, 0.02);  // Lighter fog, reduced density
 
-    // Enhanced: Add soft blue ambient lighting
-    const coldAmbient = new THREE.AmbientLight(0x5588aa, 0.4);
+    // Enhanced: Add brighter blue ambient lighting
+    const coldAmbient = new THREE.AmbientLight(0x88aacc, 0.6);  // Brighter
     scene.add(coldAmbient);
 
-    // Enhanced: Add cool point lights for icy shimmer
-    const iceLight1 = new THREE.PointLight(0x88ccff, 0.6, 25);
-    iceLight1.position.set(10, 3, 0);
+    // Enhanced: Add brighter cool point lights for icy shimmer
+    const iceLight1 = new THREE.PointLight(0xaaddff, 1.2, 35);  // Much brighter
+    iceLight1.position.set(10, 5, 0);  // Higher up
     scene.add(iceLight1);
 
-    const iceLight2 = new THREE.PointLight(0xaaddff, 0.5, 20);
-    iceLight2.position.set(-8, 4, 8);
+    const iceLight2 = new THREE.PointLight(0xccddff, 1.0, 30);  // Brighter
+    iceLight2.position.set(-8, 6, 8);  // Higher up
     scene.add(iceLight2);
 
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
@@ -3592,12 +3592,12 @@ function animate() {
     // Update pulsating light in dark scene
     scene.traverse((object) => {
         if (object.userData.isPulsingLight) {
-            object.intensity = 0.15 + Math.sin(Date.now() * 0.001) * 0.05;
+            object.intensity = 0.3 + Math.sin(Date.now() * 0.001) * 0.1;  // Brighter pulsing
         }
         // Animate heat lights in red scene
         if (object.userData.isHeatLight) {
             const time = Date.now() * 0.0005;
-            object.intensity = object.userData.baseIntensity + Math.sin(time + object.userData.angle) * 0.2;
+            object.intensity = object.userData.baseIntensity + Math.sin(time + object.userData.angle) * 0.3;  // Stronger variation
         }
     });
 
