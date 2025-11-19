@@ -1589,7 +1589,254 @@ function toggleMusic() {
 musicBtn.addEventListener('click', toggleMusic);
 
 // ============================================================================
+// ============================================================================
+// ENHANCED MATERIAL HELPERS
+// ============================================================================
+
+// Create volcanic rock material with cracks
+function createVolcanicRockMaterial() {
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+        roughness: 0.95,
+        metalness: 0.1,
+        emissive: 0x1a0a0a,
+        emissiveIntensity: 0.15
+    });
+
+    // Add variation using vertex colors simulation
+    material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            `
+            #include <color_fragment>
+            // Add subtle crack-like variations
+            float crack = fract(sin(dot(vUv, vec2(12.9898, 78.233))) * 43758.5453);
+            diffuseColor.rgb *= mix(0.7, 1.0, crack);
+            `
+        );
+    };
+
+    return material;
+}
+
+// Create animated lava material
+function createLavaMaterial() {
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xff3300,
+        emissive: 0xff3300,
+        emissiveIntensity: 0.8,
+        roughness: 0.2,
+        metalness: 0.05
+    });
+
+    // Add animated noise for flowing lava
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.time = { value: 0 };
+
+        // Store the uniform so we can update it
+        material.userData.shader = shader;
+
+        shader.fragmentShader = `
+            uniform float time;
+            ${shader.fragmentShader}
+        `.replace(
+            '#include <emissivemap_fragment>',
+            `
+            #include <emissivemap_fragment>
+
+            // Simple noise function
+            float noise(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            }
+
+            // Flowing lava effect
+            vec2 flowUv = vUv * 3.0 + vec2(time * 0.05, time * 0.03);
+            float flow1 = noise(flowUv);
+            float flow2 = noise(flowUv * 2.0 + vec2(time * 0.07));
+            float lavaFlow = (flow1 + flow2) * 0.5;
+
+            // Modulate emissive intensity
+            totalEmissiveRadiance *= (0.6 + lavaFlow * 0.4);
+
+            // Add bright veins
+            if (lavaFlow > 0.85) {
+                totalEmissiveRadiance *= 1.5;
+            }
+            `
+        );
+    };
+
+    return material;
+}
+
+// Create snow material with sparkles
+function createSnowMaterial() {
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xe8f4f8,
+        roughness: 0.6,
+        metalness: 0.02,
+        emissive: 0xaaccee,
+        emissiveIntensity: 0.05
+    });
+
+    // Add sparkle effect
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.time = { value: 0 };
+
+        // Store the uniform so we can update it
+        material.userData.shader = shader;
+
+        shader.fragmentShader = `
+            uniform float time;
+            ${shader.fragmentShader}
+        `.replace(
+            '#include <emissivemap_fragment>',
+            `
+            #include <emissivemap_fragment>
+
+            // Sparkle noise
+            float sparkleNoise = fract(sin(dot(vUv * 40.0, vec2(12.9898, 78.233)) + time) * 43758.5453);
+
+            // Create sparkle points
+            if (sparkleNoise > 0.98) {
+                totalEmissiveRadiance += vec3(0.3, 0.4, 0.5) * (sparkleNoise - 0.98) * 50.0;
+            }
+
+            // Add soft brightness variation
+            float snowBrightness = fract(sin(dot(vUv * 5.0, vec2(127.1, 311.7))) * 43758.5453);
+            diffuseColor.rgb *= mix(0.95, 1.05, snowBrightness);
+            `
+        );
+    };
+
+    return material;
+}
+
+// Create dust/fog particles for dark scene
+function createDustParticles(scene) {
+    const dustCount = 150;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(dustCount * 3);
+    const velocities = new Float32Array(dustCount * 3);
+
+    for (let i = 0; i < dustCount; i++) {
+        const i3 = i * 3;
+        positions[i3] = (Math.random() - 0.5) * 40;
+        positions[i3 + 1] = Math.random() * 15;
+        positions[i3 + 2] = (Math.random() - 0.5) * 40;
+
+        velocities[i3] = (Math.random() - 0.5) * 0.02;
+        velocities[i3 + 1] = Math.random() * 0.01;
+        velocities[i3 + 2] = (Math.random() - 0.5) * 0.02;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+
+    const material = new THREE.PointsMaterial({
+        color: 0x666666,
+        size: 0.15,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending
+    });
+
+    const dust = new THREE.Points(geometry, material);
+    dust.userData.isDust = true;
+    scene.add(dust);
+
+    return dust;
+}
+
+// Create snow sparkles for blue scene
+function createSnowSparkles(scene) {
+    const sparkleCount = 100;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(sparkleCount * 3);
+    const velocities = new Float32Array(sparkleCount * 3);
+
+    for (let i = 0; i < sparkleCount; i++) {
+        const i3 = i * 3;
+        positions[i3] = (Math.random() - 0.5) * 40;
+        positions[i3 + 1] = Math.random() * 12;
+        positions[i3 + 2] = (Math.random() - 0.5) * 40;
+
+        velocities[i3] = (Math.random() - 0.5) * 0.01;
+        velocities[i3 + 1] = Math.random() * 0.02 + 0.01; // Drift upward
+        velocities[i3 + 2] = (Math.random() - 0.5) * 0.01;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+
+    const material = new THREE.PointsMaterial({
+        color: 0xaaddff,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+    });
+
+    const sparkles = new THREE.Points(geometry, material);
+    sparkles.userData.isSnowSparkles = true;
+    scene.add(sparkles);
+
+    return sparkles;
+}
+
+// Update lava material animation
+function updateLavaMaterial(delta) {
+    scene.traverse((object) => {
+        if (object.material && object.material.userData.shader) {
+            object.material.userData.shader.uniforms.time.value += delta;
+        }
+    });
+}
+
+// Update dust particles
+function updateDustParticles() {
+    scene.traverse((object) => {
+        if (object.userData.isDust) {
+            const positions = object.geometry.attributes.position.array;
+            const velocities = object.geometry.attributes.velocity.array;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+
+                // Wrap particles
+                if (positions[i + 1] > 15) positions[i + 1] = 0;
+                if (Math.abs(positions[i]) > 20) positions[i] *= -0.9;
+                if (Math.abs(positions[i + 2]) > 20) positions[i + 2] *= -0.9;
+            }
+
+            object.geometry.attributes.position.needsUpdate = true;
+        }
+
+        if (object.userData.isSnowSparkles) {
+            const positions = object.geometry.attributes.position.array;
+            const velocities = object.geometry.attributes.velocity.array;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+
+                // Wrap particles - snow drifts upward
+                if (positions[i + 1] > 12) positions[i + 1] = 0;
+                if (Math.abs(positions[i]) > 20) positions[i] *= -0.9;
+                if (Math.abs(positions[i + 2]) > 20) positions[i + 2] *= -0.9;
+            }
+
+            object.geometry.attributes.position.needsUpdate = true;
+        }
+    });
+}
+
+// ============================================================================
 // BALL CREATION FUNCTIONS
+// ============================================================================
 // ============================================================================
 function createInitialBall(position = new THREE.Vector3(0, BALL_RADIUS, 0)) {
     const geometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
@@ -2300,20 +2547,34 @@ function createDarkScene() {
     if (backgroundManager) {
         backgroundManager.setBackground('scene_dark');
     } else {
-        scene.background = new THREE.Color(0x212121);
+        scene.background = new THREE.Color(0x0a0a0a); // Darker background
     }
 
-    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x424242,
-        roughness: 0.9
-    });
+    // Enhanced: Volcanic rock floor with cracks
+    const groundGeometry = new THREE.CircleGeometry(20, 64);
+    const groundMaterial = createVolcanicRockMaterial();
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     ground.userData.isGround = true;
     scene.add(ground);
     sceneObjects.push(ground);
+
+    // Enhanced: Add dust particles drifting in the air
+    createDustParticles(scene);
+
+    // Enhanced: Add thick fog for heavy atmosphere
+    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.08);
+
+    // Enhanced: Add pulsating ambient light
+    const ambientPulse = new THREE.AmbientLight(0x331111, 0.15);
+    ambientPulse.userData.isPulsingLight = true;
+    scene.add(ambientPulse);
+
+    // Enhanced: Add dim point light above for subtle illumination
+    const dimLight = new THREE.PointLight(0x443333, 0.3, 30);
+    dimLight.position.set(0, 10, 0);
+    scene.add(dimLight);
 
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
     scene.add(playerBall);
@@ -2324,7 +2585,7 @@ function createDarkScene() {
     // Atmospheric pacing before effect
     triggerAtmosphericEvent('calm_before');
     setTimeout(() => {
-        showAtmosphericText('Darkness consumes all light...', 3000);
+        showAtmosphericText('The volcanic chamber echoes with silence...', 3000);
     }, 1500);
 
     // Set storm lighting for dark scene
@@ -2346,23 +2607,41 @@ function createRedScene() {
     if (backgroundManager) {
         backgroundManager.setBackground('scene_red');
     } else {
-        scene.background = new THREE.Color(0xb71c1c);
+        scene.background = new THREE.Color(0x3d0000); // Darker red background
     }
 
-    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff0000,           // Pure red color
-        emissive: 0xff0000,        // Red glow
-        emissiveIntensity: 0.6,    // Moderate glow intensity for lava effect
-        roughness: 0.3,            // Smoother surface like molten lava
-        metalness: 0.1
-    });
+    // Enhanced: Animated lava floor with flowing magma effect
+    const groundGeometry = new THREE.CircleGeometry(20, 64);
+    const groundMaterial = createLavaMaterial();
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
+    ground.receiveShadow = false; // Lava doesn't receive shadows
     ground.userData.isGround = true;
     scene.add(ground);
     sceneObjects.push(ground);
+
+    // Enhanced: Add orange/red glow reflecting upward
+    const lavaGlow = new THREE.PointLight(0xff6600, 1.5, 40);
+    lavaGlow.position.set(0, 1, 0);
+    scene.add(lavaGlow);
+
+    // Enhanced: Add multiple smaller lights for heat shimmer effect
+    for (let i = 0; i < 5; i++) {
+        const angle = (Math.PI * 2 * i) / 5;
+        const heatLight = new THREE.PointLight(0xff3300, 0.5, 15);
+        heatLight.position.set(
+            Math.cos(angle) * 10,
+            0.5,
+            Math.sin(angle) * 10
+        );
+        heatLight.userData.isHeatLight = true;
+        heatLight.userData.angle = angle;
+        heatLight.userData.baseIntensity = 0.5;
+        scene.add(heatLight);
+    }
+
+    // Enhanced: Add subtle red fog for heat haze
+    scene.fog = new THREE.FogExp2(0x330000, 0.04);
 
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
     scene.add(playerBall);
@@ -2370,7 +2649,11 @@ function createRedScene() {
     // Add exit ramp for Fire Ball
     if (gameState.currentBallType === BALL_TYPES.FIRE) {
         const rampGeometry = new THREE.BoxGeometry(8, 0.5, 12);
-        const rampMaterial = new THREE.MeshStandardMaterial({ color: 0x8d6e63 });
+        const rampMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8d6e63,
+            emissive: 0x330000,
+            emissiveIntensity: 0.2
+        });
         const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
         ramp.position.set(0, -2, 15);
         ramp.rotation.x = Math.PI / 10;
@@ -2395,7 +2678,7 @@ function createRedScene() {
     // Atmospheric pacing
     triggerAtmosphericEvent('storm_approaching');
     setTimeout(() => {
-        showAtmosphericText('The crimson void hungers...', 3000);
+        showAtmosphericText('Molten rivers flow beneath your path...', 3000);
     }, 1500);
 
     // Set warm/hot lighting for red scene
@@ -2416,14 +2699,12 @@ function createBlueScene() {
     if (backgroundManager) {
         backgroundManager.setBackground('scene_blue');
     } else {
-        scene.background = new THREE.Color(0x0d47a1);
+        scene.background = new THREE.Color(0x0a1a2e); // Darker blue background
     }
 
-    const groundGeometry = new THREE.CircleGeometry(20, 64); // Circular floor with radius 20
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1565c0,
-        roughness: 0.4
-    });
+    // Enhanced: Snow-like floor with sparkle effect
+    const groundGeometry = new THREE.CircleGeometry(20, 64);
+    const groundMaterial = createSnowMaterial();
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -2431,13 +2712,37 @@ function createBlueScene() {
     scene.add(ground);
     sceneObjects.push(ground);
 
+    // Enhanced: Add snow sparkle particles drifting upward
+    createSnowSparkles(scene);
+
+    // Enhanced: Add cold fog with pale blue tint
+    scene.fog = new THREE.FogExp2(0x0a2540, 0.05);
+
+    // Enhanced: Add soft blue ambient lighting
+    const coldAmbient = new THREE.AmbientLight(0x5588aa, 0.4);
+    scene.add(coldAmbient);
+
+    // Enhanced: Add cool point lights for icy shimmer
+    const iceLight1 = new THREE.PointLight(0x88ccff, 0.6, 25);
+    iceLight1.position.set(10, 3, 0);
+    scene.add(iceLight1);
+
+    const iceLight2 = new THREE.PointLight(0xaaddff, 0.5, 20);
+    iceLight2.position.set(-8, 4, 8);
+    scene.add(iceLight2);
+
     playerBall = createBallByType(gameState.currentBallType, new THREE.Vector3(0, BALL_RADIUS + 5, 0));
     scene.add(playerBall);
 
     // Add exit ramp for Glass Ball
     if (gameState.currentBallType === BALL_TYPES.GLASS) {
         const rampGeometry = new THREE.BoxGeometry(8, 0.5, 12);
-        const rampMaterial = new THREE.MeshStandardMaterial({ color: 0x546e7a });
+        const rampMaterial = new THREE.MeshStandardMaterial({
+            color: 0x88aacc,
+            roughness: 0.3,
+            emissive: 0x224466,
+            emissiveIntensity: 0.2
+        });
         const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
         ramp.position.set(0, -2, 15);
         ramp.rotation.x = Math.PI / 10;
@@ -2460,7 +2765,7 @@ function createBlueScene() {
     choiceState.holesEntered.push('blue_scene');
 
     // Atmospheric pacing - cold and serene
-    showAtmosphericText('The icy waters reflect your true nature...', 4000);
+    showAtmosphericText('Frozen silence fills the crystalline void...', 4000);
     choiceState.windStrength = 10;
     updateWindIndicator();
 
@@ -3278,6 +3583,23 @@ function animate() {
         const delta = bgClock.getDelta();
         backgroundManager.update(delta);
     }
+
+    // Update enhanced scene materials and effects
+    const materialDelta = bgClock.getDelta();
+    updateLavaMaterial(materialDelta); // Animate flowing lava in red scene
+    updateDustParticles(); // Animate dust in dark scene and snow sparkles in blue scene
+
+    // Update pulsating light in dark scene
+    scene.traverse((object) => {
+        if (object.userData.isPulsingLight) {
+            object.intensity = 0.15 + Math.sin(Date.now() * 0.001) * 0.05;
+        }
+        // Animate heat lights in red scene
+        if (object.userData.isHeatLight) {
+            const time = Date.now() * 0.0005;
+            object.intensity = object.userData.baseIntensity + Math.sin(time + object.userData.angle) * 0.2;
+        }
+    });
 
     renderer.render(scene, camera);
 }
