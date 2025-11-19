@@ -2493,7 +2493,7 @@ function handleDarkSceneEffect() {
             playerBall = null;
             showMessage('Glass Ball Shattered!');
             setTimeout(() => showRestartButton(), 1500);
-        }, 1000);
+        }, 2500); // Increased from 1000ms to 2500ms for longer view
     } else if (gameState.currentBallType === BALL_TYPES.FIRE) {
         // Fire Ball extinguishes
         gameState.inputEnabled = false;
@@ -2507,7 +2507,7 @@ function handleDarkSceneEffect() {
             playerBall = null;
             showMessage('Fire Ball Extinguished!');
             setTimeout(() => showRestartButton(), 1500);
-        }, 1000);
+        }, 2500); // Increased from 1000ms to 2500ms for longer view
     } else if (gameState.currentBallType === BALL_TYPES.BOUNCY) {
         // Bouncy Ball bounces twice then can exit
         choiceState.survivedScenes++;
@@ -2561,8 +2561,8 @@ function handleRedSceneEffect() {
                 playerBall = null;
                 showMessage('Ball disappeared into the red void!');
                 setTimeout(() => transitionToScene(SCENES.A, true), 1500);
-            }, 500);
-        }, 1000);
+            }, 1500); // Increased from 500ms to 1500ms for longer effect viewing
+        }, 2500); // Increased from 1000ms to 2500ms for longer view
     } else if (gameState.currentBallType === BALL_TYPES.FIRE) {
         // Fire Ball survives and can continue moving
         choiceState.survivedScenes++;
@@ -2573,7 +2573,7 @@ function handleRedSceneEffect() {
 function handleBlueSceneEffect() {
     if (gameState.currentBallType === BALL_TYPES.FIRE ||
         gameState.currentBallType === BALL_TYPES.BOUNCY) {
-        // Fire or Bouncy disappears instantly
+        // Fire or Bouncy disappears
         gameState.inputEnabled = false;
         choiceState.totalDeaths++;
         choiceState.justDied = true; // Mark death for persistent effects
@@ -2582,9 +2582,9 @@ function handleBlueSceneEffect() {
             createDisappearEffect(playerBall.position.clone());
             scene.remove(playerBall);
             playerBall = null;
-            showMessage('Ball vanished instantly!');
+            showMessage('Ball vanished into the blue abyss!');
             setTimeout(() => transitionToScene(SCENES.A, true), 1500);
-        }, 500);
+        }, 2500); // Increased from 500ms to 2500ms for longer view
     } else if (gameState.currentBallType === BALL_TYPES.GLASS) {
         // Glass Ball bounces and survives
         choiceState.survivedScenes++;
